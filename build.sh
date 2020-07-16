@@ -1,5 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-cd app
+set -euo pipefail
+
 mkdir build
+cd app
 scalac *.scala -d build/Main.jar
