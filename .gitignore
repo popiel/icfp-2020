@@ -4,3 +4,4 @@ Dockerfile
 .*.swp
 .*.swo
 target/
+build/
