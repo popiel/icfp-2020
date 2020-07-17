@@ -3,20 +3,28 @@ import scala.math.BigInt
 
 sealed trait AST extends Function0[Any]
 object AST {
+  type Fun1 = (Any) => Any
+  type Fun2 = (Any) => ((Any) => Any)
   case class Const(a: Any) extends AST { def apply() = a }
-  case class Func(f: (Any) => Any) extends AST { def apply() = f }
+  case class Func(f: Fun1) extends AST { def apply() = f }
+  object Func {
+    def apply(f: Fun1) = new Func(f)
+    def apply(f: (Any, Any) => Any) =
+      new Func((a: Any) => ((b: Any) => f(a, b)))
+    def apply[A,B,C](f: (A, B, C) => Any) =
+      new Func(((a: A) => ((b: B) => ((c: C) => f(a, b, c)))).asInstanceOf[Fun1])
+  }
   case class Ap(a: AST, b: AST) extends AST {
     def apply() = a() match {
       case f: ((Any) => Any) => f(b())
       case _ => throw new IllegalArgumentException(s"Cannot apply non-function $a to $b")
     }
   }
-  case object Cons extends AST {
-    def apply() = { (a: Any) => { (b: Any) => b match {
-      case l: List[_] => a :: l
-      case _ => (a, b)
-    } } }
-  }
+  val Cons = Func((a: Any, b: Any) => b match {
+    case l: List[_] => a :: l
+    case _ => (a, b)
+    }
+  )
 }
 
 class Interpreter {
@@ -56,25 +64,16 @@ class Interpreter {
         val (b, r2) = parse(r1)
         (Ap(a, b), r2)
       }
+      case "c" => (Func((a: Fun2, b: Any, c: Any) => a(c)(b)), words.tail)
       case "cons" => (Cons, words.tail)
+      case "neg" => (Func(_ match {
+        case n: BigInt => -n
+        case x => throw new IllegalArgumentException(s"Cannot negate non-integer $x")
+      }), words.tail)
       case "nil" => (Const(Nil), words.tail)
+      case "s" => (Func((a: Fun2, b: Fun1, c: Any) => a(c)(b(c))), words.tail)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
     }
-  }
-
-  def ap(a: Any, b: Any) = a match {
-    case f: ((Any) => Any) => {
-      println(s"About to apply $f to $b")
-      val r = f(b)
-      println(s"Yielded $r")
-      r
-    }
-    case _ => throw new IllegalArgumentException(s"cannot apply non-function $a to $b")
-  }
-
-  def cons(a: Any, b: Any) = b match {
-    case l: List[_] => a :: l
-    case _ => (a, b)
   }
 }
