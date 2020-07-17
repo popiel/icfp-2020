@@ -23,7 +23,9 @@ object Modulate {
   def modulate(v: Any): String = v match {
     case Nil => "00"
     case (a: Any, b: Any) => "11" + modulate(a) + modulate(b)
-    case n: BigInt => if (n > 0) {
+    case n: Int => modulate(BigInt(n))
+    case n: Long => modulate(BigInt(n))
+    case n: BigInt => if (n >= 0) {
       val l = n.bitLength + 3 / 4
       "01" + "1" * (l) + "0" + ("000" + n.toString(2)).takeRight(l * 4)
     } else {
