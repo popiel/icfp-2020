@@ -1,5 +1,3 @@
-package icfp
-
 import scala.math.BigInt
 
 object Modulate {
