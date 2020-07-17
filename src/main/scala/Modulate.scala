@@ -12,14 +12,14 @@ object Modulate {
       }
     }
     case "01" => {
-      val n = s.indexOf('0') - 2
-      val v = BigInt(s.substring(n + 2, n + 2 + n * 4), 2)
-      (v, s drop (n + 2 + n * 4))
+      val n = s.indexOf('0', 2) - 2
+      val v = if (n > 0) BigInt(s.substring(n + 3, n + 3 + n * 4), 2) else BigInt(0)
+      (v, s.drop(n + 3 + n * 4))
     }
     case "10" => {
-      val n = s.indexOf('0') - 2
-      val v = BigInt(s.substring(n + 2, n + 2 + n * 4), 2)
-      (-v, s drop (n + 2 + n * 4))
+      val n = s.indexOf('0', 2) - 2
+      val v = if (n > 0) BigInt(s.substring(n + 3, n + 3 + n * 4), 2) else BigInt(0)
+      (-v, s.drop(n + 3 + n * 4))
     }
   }
 
