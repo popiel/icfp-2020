@@ -6,17 +6,17 @@ object AST {
   type Fun1 = (Any) => Any
   type Fun2 = (Any) => ((Any) => Any)
   case class Const(a: Any) extends AST { def apply() = a }
-  case class Func(f: Fun1) extends AST { def apply() = f }
+  case class Func[A](f: (A) => Any) extends AST { def apply() = f }
   object Func {
-    def apply(f: Fun1) = new Func(f)
-    def apply(f: (Any, Any) => Any) =
-      new Func((a: Any) => ((b: Any) => f(a, b)))
+    def apply[A](f: (A) => Any) = new Func(f)
+    def apply[A,B](f: (A, B) => Any) =
+      new Func(((a: A) => ((b: B) => f(a, b))))
     def apply[A,B,C](f: (A, B, C) => Any) =
-      new Func(((a: A) => ((b: B) => ((c: C) => f(a, b, c)))).asInstanceOf[Fun1])
+      new Func(((a: A) => ((b: B) => ((c: C) => f(a, b, c)))))
   }
   case class Ap(a: AST, b: AST) extends AST {
     def apply() = a() match {
-      case f: ((Any) => Any) => f(b())
+      case f: ((_) => Any) => f.asInstanceOf[(Any) => Any](b())
       case _ => throw new IllegalArgumentException(s"Cannot apply non-function $a to $b")
     }
   }
@@ -55,25 +55,35 @@ class Interpreter {
   }
 
   def parse(words: Seq[String]): (AST, Seq[String]) = {
-    words.head match {
-      case x if x.forall(_.isDigit) => (Const(BigInt(x)), words.tail)
-      case s if s(0) == ':' => (Lookup(s), words.tail)
-
-      case "ap" => {
-        val (a, r1) = parse(words.tail)
-        val (b, r2) = parse(r1)
-        (Ap(a, b), r2)
-      }
-      case "c" => (Func((a: Fun2, b: Any, c: Any) => a(c)(b)), words.tail)
-      case "cons" => (Cons, words.tail)
-      case "neg" => (Func(_ match {
-        case n: BigInt => -n
-        case x => throw new IllegalArgumentException(s"Cannot negate non-integer $x")
-      }), words.tail)
-      case "nil" => (Const(Nil), words.tail)
-      case "s" => (Func((a: Fun2, b: Fun1, c: Any) => a(c)(b(c))), words.tail)
+    if (words.head == "ap") {
+      val (a, r1) = parse(words.tail)
+      val (b, r2) = parse(r1)
+      (Ap(a, b), r2)
+    } else (words.head match {
+      case x if x.forall(_.isDigit) => Const(BigInt(x))
+      case s if s(0) == ':' => Lookup(s)
+      
+      case "b" => Func((a: Fun1, b: Fun1, c: Any) => a(b(c)))
+      case "c" => Func((a: Fun2, b: Any, c: Any) => a(c)(b))
+      case "car" => Func((a: Any) => a match {
+        case l: List[_] => l.head
+        case (x, _) => x
+      })
+      case "cdr" => Func((a: Any) => a match {
+        case l: List[_] => l.tail
+        case (_, x) => x
+      })
+      case "cons" => Cons
+      case "f" => Func((a: Any, b: Any) => b)
+      case "i" => Func((a: Any) => a)
+      case "isnil" => Func((a: Any) => a == Nil)
+      case "neg" => Func((a: BigInt) => -a)
+      case "nil" => Const(Nil)
+      case "pwr2" => Func((a: BigInt) => BigInt(1) << a.toInt)
+      case "s" => Func((a: Fun2, b: Fun1, c: Any) => a(c)(b(c)))
+      case "t" => Func((a: Any, b: Any) => a)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
-    }
+    }, words.tail)
   }
 }
