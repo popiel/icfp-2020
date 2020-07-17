@@ -17,6 +17,8 @@ object AST {
   case class Ap(a: AST, b: AST) extends AST {
     def apply() = a() match {
       case f: ((_) => Any) => f.asInstanceOf[(Any) => Any](b())
+      case true => Func((x: Any, y: Any) => x)()(b())
+      case false => Func((x: Any, y: Any) => y)()(b())
       case _ => throw new IllegalArgumentException(s"Cannot apply non-function $a to $b")
     }
   }
@@ -61,8 +63,10 @@ class Interpreter {
       (Ap(a, b), r2)
     } else (words.head match {
       case x if x.forall(_.isDigit) => Const(BigInt(x))
+      case x if x(0) == '-' && x.tail.forall(_.isDigit) => Const(BigInt(x))
       case s if s(0) == ':' => Lookup(s)
-      
+     
+      case "add" => Func((a: BigInt, b: BigInt) => a + b)
       case "b" => Func((a: Fun1, b: Fun1, c: Any) => a(b(c)))
       case "c" => Func((a: Fun2, b: Any, c: Any) => a(c)(b))
       case "car" => Func((a: Any) => a match {
@@ -74,9 +78,15 @@ class Interpreter {
         case (_, x) => x
       })
       case "cons" => Cons
+      case "dec" => Func((a: BigInt) => a - 1)
+      case "div" => Func((a: BigInt, b: BigInt) => a / b)
+      case "eq" => Func((a: Any, b: Any) => a == b)
       case "f" => Func((a: Any, b: Any) => b)
       case "i" => Func((a: Any) => a)
+      case "inc" => Func((a: BigInt) => a + 1)
       case "isnil" => Func((a: Any) => a == Nil)
+      case "lt" => Func((a: BigInt, b: BigInt) => a < b)
+      case "mul" => Func((a: BigInt, b: BigInt) => a * b)
       case "neg" => Func((a: BigInt) => -a)
       case "nil" => Const(Nil)
       case "pwr2" => Func((a: BigInt) => BigInt(1) << a.toInt)
