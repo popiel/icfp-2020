@@ -6,7 +6,10 @@ object Modulate {
     case "11" => {
       val (a, r1) = demodulate(s drop 2)
       val (b, r2) = demodulate(r1)
-      ((a, b), r2)
+      b match {
+        case l: List[Any] => (a :: l, r2)
+        case _ => ((a, b), r2)
+      }
     }
     case "01" => {
       val n = s.indexOf('0') - 2
@@ -23,13 +26,14 @@ object Modulate {
   def modulate(v: Any): String = v match {
     case Nil => "00"
     case (a: Any, b: Any) => "11" + modulate(a) + modulate(b)
+    case a :: b => "11" + modulate(a) + modulate(b)
     case n: Int => modulate(BigInt(n))
     case n: Long => modulate(BigInt(n))
     case n: BigInt => if (n >= 0) {
-      val l = n.bitLength + 3 / 4
+      val l = (n.bitLength + 3) / 4
       "01" + "1" * (l) + "0" + ("000" + n.toString(2)).takeRight(l * 4)
     } else {
-      val l = (-n).bitLength + 3 / 4
+      val l = ((-n).bitLength + 3) / 4
       "10" + "1" * (l) + "0" + ("000" + (-n).toString(2)).takeRight(l * 4)
     }
   }
