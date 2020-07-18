@@ -1,3 +1,5 @@
+import foo._
+
 import org.scalatest._
 import org.scalatest.funspec._
 import org.scalatest.matchers._
@@ -42,6 +44,14 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
       it("should properly decode a short list") {
         demodulate("1101100001110110001000") shouldBe (List(1, 2), "")
       }
+    }
+  }
+
+  describe("interpreting cons") {
+    it("should properly build a list") {
+      val interp = new Interpreter()
+      interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
+      interp.symbols(":1029")().toString() shouldBe "Const(List(7, 8))"
     }
   }
 }

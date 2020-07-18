@@ -9,7 +9,7 @@ import AST._
 
 object Interact extends Interact(Interpreter.protocol("galaxy"))
 
-class Interact(protocol: Fun2) {
+class Interact(protocol: AST[Any]) {
   val uri = URI.create("https://icfpc2020-api.testkontur.ru/aliens/send?apiKey=1340d7f0d5004d40a8b3083863167298")
 
   var state: Any = BigInt(0)
@@ -45,8 +45,10 @@ class Interact(protocol: Fun2) {
   }
 
   def interact(state: Any, vector: Any) {
-    val chunk = protocol(Const(state))(Const(vector))
-    println(chunk)
+    val p = protocol()
+    println(s"Proto func: $p")
+    val chunk = Ap(Ap(p.asInstanceOf[AST[Any]], Const(state))().asInstanceOf[AST[Any]], Const(vector))()
+    println(s"Proto out: $chunk")
     val (flag, (newState, data)) = chunk.asInstanceOf[(Any, (Any, Any))]
     store(newState)
     if (flag == 0)
