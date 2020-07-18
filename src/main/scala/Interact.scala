@@ -46,11 +46,9 @@ class Interact(protocol: AST[Any]) {
 
   def interact(state: Any, vector: Any): String = {
     println(s"Proto func: $protocol")
-    val withState = Ap(protocol, Const(state))()
-    val withStateCast = withState.asInstanceOf[AST[Any]]
-    val withVector = Ap(withStateCast, Const(vector))()
-    val withVectorCast = withVector.asInstanceOf[AST[Any]]
-    val chunk = withVectorCast
+    val withState = Ap(protocol, Const(state))
+    val withVector = Ap(withState, Const(vector))
+    val chunk = withVector()
     println(s"Proto out: $chunk")
     val (flag, (newState, data)) = chunk.asInstanceOf[(Any, (Any, Any))]
     store(newState)

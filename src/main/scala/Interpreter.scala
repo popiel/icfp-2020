@@ -35,7 +35,6 @@ object AST {
   }
   case class Ap(a: AST[Any], b: AST[Any]) extends AST[Any] {
     def apply() = a() match {
-      case f: ((_) => Any) => f.asInstanceOf[Fun1](b)
       case Func(n, f) => {
         println(s"Applying $n to $b")
         val r = f.asInstanceOf[Fun1](b)
@@ -44,6 +43,8 @@ object AST {
       }
       case true => Func("t", (x: AST[Any], y: AST[Any]) => x)()(b)
       case false => Func("f", (x: AST[Any], y: AST[Any]) => y)()(b)
+      case x: AST[Any] => Ap(x, b)()
+      case f: ((_) => Any) => f.asInstanceOf[Fun1](b)
       case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
     }
     override def toString() = s"ap $a $b"
@@ -105,17 +106,10 @@ class Interpreter {
      
       case "add" => Func("add", (a: AST[BigInt], b: AST[BigInt]) => a() + b())
       case "b" => Func("b", (a: AST[Fun1], b: AST[Fun1], c: AST[Any]) => {
-        val (x, y) = (a(), b())
-        println(s"Really running b on $x, $y, $c")
-        val r = x(y(c))
-        println(s"Really ran b on $x, $y, $c result $r")
-        r
+        Ap(a, Ap(b, c))()
       })
       case "c" => Func("c", (a: AST[Fun2], b: AST[Any], c: AST[Any]) => {
-        val x = a()
-        println(s"Really running c on $x, $b, $c")
-        val r = x(c)(b)
-        println(s"Really ran c on $x, $b, $c result $r")
+        Ap(Ap(a, c), b)()
       })
       case "car" => Func("car", (a: AST[Any]) => a() match {
         case l: Seq[_] => Const(l.head)
@@ -146,7 +140,9 @@ class Interpreter {
       case "neg" => Func("neg", (a: AST[BigInt]) => -(a()))
       case "nil" => Const(Nil)
       case "pwr2" => Func("pwr2", (a: AST[BigInt]) => BigInt(1) << a().toInt)
-      case "s" => Func("s", (a: AST[Fun2], b: AST[Fun1], c: AST[Any]) => Ap(Ap(a,c),Ap(b,c))())
+      case "s" => Func("s", (a: AST[Fun2], b: AST[Fun1], c: AST[Any]) =>
+        Ap(Ap(a,c),Ap(b,c))()
+      )
       case "t" => Func("t", (a: AST[Any], b: AST[Any]) => a)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
