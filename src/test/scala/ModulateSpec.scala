@@ -48,63 +48,64 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
   }
 
   describe("interpreter") {
+    import AST.extract
     it("cons should properly build a list") {
       val interp = new Interpreter()
       interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
-      interp.symbols(":1029")().toString() shouldBe "List(7, 8)"
+      extract[Any](interp.symbols(":1029")).toString() shouldBe "List(7, 8)"
     }
 
     it("recursion should not explode") {
       val interp = new Interpreter()
       interp.run(":2048 = ap f :2048")
       interp.run(":test = ap :2048 42")
-      interp.symbols(":test")().toString() shouldBe "Const(42)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "42"
     }
 
     it("s should work") {
       val interp = new Interpreter()
       interp.run(":test = ap ap ap s add inc 1")
-      interp.symbols(":test")().toString() shouldBe "Const(3)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "3"
       interp.run(":test2 = ap ap ap s mul ap add 1 6")
-      interp.symbols(":test2")().toString() shouldBe "Const(42)"
+      extract[Any](interp.symbols(":test2")).toString() shouldBe "42"
     }
 
     it("c should work") {
       val interp = new Interpreter()
       interp.run(":test = ap ap ap c add 1 2")
-      interp.symbols(":test")().toString() shouldBe "Const(3)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "3"
       interp.run(":test2 = ap ap ap c div 2 6")
-      interp.symbols(":test2")().toString() shouldBe "Const(3)"
+      extract[Any](interp.symbols(":test2")).toString() shouldBe "3"
     }
 
     it("b should work") {
       val interp = new Interpreter()
       interp.run(":test = ap ap ap b inc dec 2")
-      interp.symbols(":test")().toString() shouldBe "Const(2)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "2"
     }
 
     it("t should work") {
       val interp = new Interpreter()
       interp.run(":test = ap ap t 1 2")
-      interp.symbols(":test")().toString() shouldBe "Const(1)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "1"
     }
 
     it("f should work") {
       val interp = new Interpreter()
       interp.run(":test = ap ap f 1 2")
-      interp.symbols(":test")().toString() shouldBe "Const(2)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "2"
     }
 
     it("pow2") {
       val interp = new Interpreter()
       interp.run(":test = ap pwr2 2")
-      interp.symbols(":test")().toString() shouldBe "Const(4)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "4"
     }
 
     it("i") {
       val interp = new Interpreter()
       interp.run(":test = ap i 2")
-      interp.symbols(":test")().toString() shouldBe "Const(2)"
+      extract[Any](interp.symbols(":test")).toString() shouldBe "2"
     }
   }
 
