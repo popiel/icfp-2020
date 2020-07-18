@@ -1,3 +1,5 @@
+package foo
+
 import scala.math.BigInt
 
 object Modulate {
