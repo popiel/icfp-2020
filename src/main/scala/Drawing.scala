@@ -24,6 +24,8 @@ object Drawing {
     }
   }
 
+  val initialSize = (1000, 800)
+
   var thePics: Seq[Seq[(BigInt, BigInt)]] = Nil
   lazy val frame: Frame = {
     val f = new Frame("Welcome to the Galaxy!")
@@ -36,7 +38,7 @@ object Drawing {
       def windowIconified(x$1: java.awt.event.WindowEvent) {}
       def windowOpened(x$1: java.awt.event.WindowEvent) {}
     })
-    f.setSize(120, 150)
+    f.setSize(initialSize._1 + 20, initialSize._2 + 50)
     f.add(canvas)
     f
   }
@@ -51,7 +53,7 @@ object Drawing {
     val c = new Canvas() {
       var painted: Seq[Seq[(BigInt, BigInt)]] = Nil
       override def paint(g: Graphics) {
-        painted = thePics
+        painted = thePics.reverse
         val points = painted.flatten
         if (points.nonEmpty) {
           val minX = points.map(_._1).min
@@ -68,13 +70,16 @@ object Drawing {
             offset = ((minX.toInt min offset._1),(minY.toInt min offset._2))
           }
           g.translate(-offset._1 * pixelSize, -offset._2 * pixelSize)
+	  val step = 255 / (painted.size + 1)
           for {
             (pic, index) <- painted.zipWithIndex
-            _ = g.setColor(new Color(255, 255, 255, 64 * (index + 1)))
+	    col = step * (2 + index)
+	    color = new Color(col, col * 2 % 256, col * 3 %256)
             point <- pic
           } {
 	    val x = point._1.toInt * pixelSize
 	    val y = point._2.toInt * pixelSize
+            g.setColor(color)
             g.drawLine(x, y, x, y)
             g.fillRect(x, y, pixelSize, pixelSize)
           }
@@ -93,7 +98,7 @@ object Drawing {
       def mouseReleased(e: MouseEvent) {}
     })
     c.setBackground(new Color(0, 0, 0))
-    c.setSize(100, 100)
+    c.setSize(initialSize._1, initialSize._2)
     c
   }
 

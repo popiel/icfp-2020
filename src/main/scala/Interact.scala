@@ -13,7 +13,6 @@ object IO {
   val uri = URI.create("https://icfpc2020-api.testkontur.ru/aliens/send?apiKey=1340d7f0d5004d40a8b3083863167298")
 
   def send(data: Any): Any = {
-    ???
     try {
       val request = HttpRequest.newBuilder
         .uri(uri)
@@ -63,9 +62,11 @@ case class Interact(name: String) {
     state
   }
 
-  def interact(x: BigInt, y: BigInt) {
+  def interact(x: BigInt, y: BigInt, n: Int = 0) {
     click(x, y)
+    println(s"Waiting for click $n")
     val next = Await.result(Drawing.nextClick, 10 minutes)
-    interact(next._1, next._2)
+    println(s"Got click $next")
+    interact(next._1, next._2, n + 1)
   }
 }
