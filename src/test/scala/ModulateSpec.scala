@@ -47,8 +47,9 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
     }
   }
 
-  describe("interpreter") {
-    import AST.extract
+  import AST.extract
+
+  ignore("interpreter") {
     it("cons should properly build a list") {
       val interp = new Interpreter()
       interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
@@ -116,9 +117,17 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
     }
   }
 
-  describe("interacting galaxy") {
-    it("should initialize properly") {
-      Interact.interact(Nil, Nil) shouldBe ""
+  describe("interacting") {
+    it("statelessdraw") {
+      Interact("statelessdraw").click(0, 0) shouldBe Nil
+    }
+    it("statefuldraw") {
+      val i = Interact("statefuldraw")
+      extract[Seq[_]](i.click(0, 0)).toSet shouldBe Set((0, 0))
+      extract[Seq[_]](i.click(1, 0)).toSet shouldBe Set((0, 0), (1, 0))
+    }
+    it("galaxy") {
+      Interact.interact(0, 0) shouldBe List(List(), ())
     }
   }
 }

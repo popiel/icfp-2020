@@ -4,17 +4,16 @@ import java.net._
 import java.net.http._
 import scala.math
 import scala.util.control._
+import scala.concurrent._
+import scala.concurrent.duration._
 
 import AST._
 
-object Interact extends Interact(Interpreter.protocol("galaxy"))
-
-class Interact(protocol: Any) {
+object IO {
   val uri = URI.create("https://icfpc2020-api.testkontur.ru/aliens/send?apiKey=1340d7f0d5004d40a8b3083863167298")
 
-  var state: Any = BigInt(0)
-
   def send(data: Any): Any = {
+    ???
     try {
       val request = HttpRequest.newBuilder
         .uri(uri)
@@ -44,27 +43,29 @@ class Interact(protocol: Any) {
     }
   }
 
-  def interact(state: Any, vector: Any): String = {
-    println(s"Proto func: $protocol")
-    //println(s"Extracted: ${AST.extract[Any](protocol)}")
-    val withState = extract[Any](Ap(protocol, state))
-    //println(s"Extracted withState: ${AST.extract[Any](withState)}")
-    val withVector = extract[Any](Ap(withState, vector))
-    println(s"Extracted withVector: ${AST.extract[Any](withVector)}")
-    /*
-    val chunk = withVector()
-    println(s"Proto out: $chunk")
-    val (flag, (newState, data)) = chunk.asInstanceOf[(Any, (Any, Any))]
-    store(newState)
-    if (flag == 0)
-      Drawing.multidraw(data.asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
-    else
-      // interact(newState, send(data))
-      s"Got $newState, $data"
-    */
-    ""
+  def store(state: Any) {
+  }
+}
+
+object Interact extends Interact("galaxy")
+
+case class Interact(name: String) {
+  val interpreter = new Interpreter()
+  interpreter.runFile(name + ".txt")
+  val protocol = interpreter.symbols(name)
+
+  var state: Any = Nil
+
+  def click(x: BigInt, y: BigInt): Any = {
+    state = extract[List[Any]](interpreter.parse(Map("protocol" -> protocol, "state" -> state, "vector" -> (x, y)),
+      "ap ap ap interact protocol state vector"
+    )).head
+    state
   }
 
-  def store(state: Any) {
+  def interact(x: BigInt, y: BigInt) {
+    click(x, y)
+    val next = Await.result(Drawing.nextClick, 10 minutes)
+    interact(next._1, next._2)
   }
 }
