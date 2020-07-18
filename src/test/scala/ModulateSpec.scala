@@ -51,7 +51,22 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
     it("should properly build a list") {
       val interp = new Interpreter()
       interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
-      interp.symbols(":1029")().toString() shouldBe "Const(List(7, 8))"
+      interp.symbols(":1029")().toString() shouldBe "List(7, 8)"
+    }
+  }
+
+  describe("interpreting recursion") {
+    it("should not explode") {
+      val interp = new Interpreter()
+      interp.run(":2048 = ap f :2048")
+      interp.run(":test = ap :2048 42")
+      interp.symbols(":test")().toString() shouldBe "Const(42)"
+    }
+  }
+
+  describe("interacting galaxy") {
+    it("should initialize properly") {
+      Interact.interact(BigInt(0), Nil) shouldBe ""
     }
   }
 }

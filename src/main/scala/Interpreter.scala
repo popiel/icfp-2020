@@ -16,7 +16,7 @@ object AST {
     def apply() = a
     override def toString() = s"Const($a)"
   }
-  case class Func[A,T](n: String, f: (A) => AST[T]) extends AST[(A) => AST[T]] {
+  case class Func[A,T](n: String, f: (A) => T) extends AST[(A) => T] {
     def apply() = (a: A) => {
       println(s"Running $n on $a")
       var r = f(a)
@@ -26,12 +26,12 @@ object AST {
     override def toString() = n
   }
   object Func {
-    def apply[A,T](n: String, f: (A) => AST[T]): AST[(A) => AST[T]] =
+    def apply[A,T](n: String, f: (A) => T): AST[(A) => T] =
       new Func(n, f)
-    def apply[A,B,T](n: String, f: (A, B) => AST[T]): AST[(A) => AST[(B) => AST[T]]] =
-      new Func(n, (a: A) => Func(n + "/" + a + "/", (b: B) => f(a, b)))
-    def apply[A,B,C,T](n: String, f: (A, B, C) => AST[T]): AST[(A) => AST[(B) => AST[(C) => AST[T]]]] =
-      new Func(n, (a: A) => Func(n + "/" + a + "/", (b: B) => Func(n + "/" + a + "/" + b + "/", (c: C) => f(a, b, c))))
+    def apply[A,B,T](n: String, f: (A, B) => T): AST[(A) => ((B) => T)] =
+      new Func(n, (a: A) => ((b: B) => f(a, b)))
+    def apply[A,B,C,T](n: String, f: (A, B, C) => T): AST[(A) => ((B) => ((C) => T))] =
+      new Func(n, (a: A) => ((b: B) => ((c: C) => f(a, b, c))))
   }
   case class Ap(a: AST[Any], b: AST[Any]) extends AST[Any] {
     def apply() = a() match {
@@ -65,7 +65,10 @@ class Interpreter {
 
   import AST._
   case class Lookup(s: String) extends AST[Any] {
-    def apply() = symbols(s)
+    def apply() = {
+      println(s"lookup $s yields ${symbols(s)}")
+      symbols(s)()
+    }
     override def toString() = s
   }
 
@@ -101,8 +104,19 @@ class Interpreter {
       case s if s(0) == ':' => Lookup(s)
      
       case "add" => Func("add", (a: AST[BigInt], b: AST[BigInt]) => a() + b())
-      case "b" => Func("b", (a: AST[Fun1], b: AST[Fun1], c: AST[Any]) => a()(b()(c)))
-      case "c" => Func("c", (a: AST[Fun2], b: AST[Any], c: AST[Any]) => a()(c)(b))
+      case "b" => Func("b", (a: AST[Fun1], b: AST[Fun1], c: AST[Any]) => {
+        val (x, y) = (a(), b())
+        println(s"Really running b on $x, $y, $c")
+        val r = x(y(c))
+        println(s"Really ran b on $x, $y, $c result $r")
+        r
+      })
+      case "c" => Func("c", (a: AST[Fun2], b: AST[Any], c: AST[Any]) => {
+        val x = a()
+        println(s"Really running c on $x, $b, $c")
+        val r = x(c)(b)
+        println(s"Really ran c on $x, $b, $c result $r")
+      })
       case "car" => Func("car", (a: AST[Any]) => a() match {
         case l: Seq[_] => Const(l.head)
         case (x, _) => Const(x)
@@ -132,7 +146,7 @@ class Interpreter {
       case "neg" => Func("neg", (a: AST[BigInt]) => -(a()))
       case "nil" => Const(Nil)
       case "pwr2" => Func("pwr2", (a: AST[BigInt]) => BigInt(1) << a().toInt)
-      case "s" => Func("s", (a: AST[Fun2], b: AST[Fun1], c: AST[Any]) => a()(c)(b()(c)))
+      case "s" => Func("s", (a: AST[Fun2], b: AST[Fun1], c: AST[Any]) => Ap(Ap(a,c),Ap(b,c))())
       case "t" => Func("t", (a: AST[Any], b: AST[Any]) => a)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
