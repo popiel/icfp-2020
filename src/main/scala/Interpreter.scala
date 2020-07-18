@@ -27,22 +27,31 @@ object AST {
   case class Ap(a: Any, b: Any) extends AST {
     def apply() = a match {
       case Func(n, f) => {
-        println(s"Applying $n to $b")
+        // println(s"Applying $n to $b")
         val r = f.asInstanceOf[Fun1](b)
-        println(s"Applying $n to $b result $r")
+        // println(s"Applied $n to $b result $r")
         r
       }
       case true => Ap(Func("t", (x: Any, y: Any) => x), b)()
       case false => Ap(Func("f", (x: Any, y: Any) => y), b)()
       case x: AST => Ap(x(), b)()
-      case f: ((_) => Any) => f.asInstanceOf[Fun1](b)
+      case f: ((_) => Any) => try {
+        f.asInstanceOf[Fun1](b)
+      } catch {
+        case e: ClassCastException =>
+          throw new IllegalArgumentException(s"Couldn't apply $f (which is a ${f.getClass}) to $b", e)
+      }
       case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
     }
     override def toString() = s"ap $a $b"
   }
 
   def extract[T](a: Any)(implicit m: Manifest[T]): T = a match {
-    case x: AST => extract[T](x())
+    case x: AST =>
+      println(s"extracting $m from $x")
+      val r = extract[T](x())
+      println(s"yielded $r from $x")
+      r
     case m(x) => x
     case _ => throw new IllegalArgumentException(s"Cannot extract a $m from $a")
   }
@@ -53,7 +62,7 @@ object Interpreter {
     val interpreter = new Interpreter()
     interpreter.runFile(s"$s.txt")
     val p = interpreter.symbols(s)
-    println(s"Using protocol $p")
+    // println(s"Using protocol $p")
     p
   }
 }
@@ -64,7 +73,7 @@ class Interpreter {
   import AST._
   case class Lookup(s: String) extends AST {
     def apply() = {
-      println(s"lookup $s yields ${symbols(s)}")
+      // println(s"lookup $s yields ${symbols(s)}")
       symbols(s)
     }
     override def toString() = s
@@ -118,7 +127,7 @@ class Interpreter {
       })
       case "cons" => Func("cons", (a: Any, b: Any) => {
         val (x, y) = (extract[Any](a), extract[Any](b))
-        println(s"Really running cons on $x, $y")
+        // println(s"Really running cons on $x, $y")
         y match {
           case l: List[_] => x :: l
           case _ => (x, y)

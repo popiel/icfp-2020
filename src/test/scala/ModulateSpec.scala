@@ -107,11 +107,18 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
       interp.run(":test = ap i 2")
       extract[Any](interp.symbols(":test")).toString() shouldBe "2"
     }
+
+    it("checkerboard") {
+      val interp = new Interpreter()
+      interp.run(":checkerboard = ap ap s ap ap b s ap ap c ap ap b c ap ap b ap c ap c ap ap s ap ap b s ap ap b ap b ap ap s i i lt eq ap ap s mul i nil ap ap s ap ap b s ap ap b ap b cons ap ap s ap ap b s ap ap b ap b cons ap c div ap c ap ap s ap ap b b ap ap c ap ap b b add neg ap ap b ap s mul div ap ap c ap ap b b :checkerboard ap ap c add 2")
+      interp.run(":test = ap ap :checkerboard 7 0")
+      extract[Seq[Any]](interp.symbols(":test")).toSet shouldBe Set((0,0), (0,2), (0,4), (0,6), (1,1), (1,3), (1,5), (2,0), (2,2), (2,4), (2,6), (3,1), (3,3), (3,5), (4,0), (4,2), (4,4), (4,6), (5,1), (5,3), (5,5), (6,0), (6,2), (6,4), (6,6))
+    }
   }
 
   describe("interacting galaxy") {
-    ignore("should initialize properly") {
-      Interact.interact(BigInt(0), Nil) shouldBe ""
+    it("should initialize properly") {
+      Interact.interact(Nil, Nil) shouldBe ""
     }
   }
 }

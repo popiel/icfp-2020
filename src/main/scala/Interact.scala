@@ -46,8 +46,12 @@ class Interact(protocol: Any) {
 
   def interact(state: Any, vector: Any): String = {
     println(s"Proto func: $protocol")
-    val withState = Ap(protocol, state)
-    val withVector = Ap(withState, vector)
+    //println(s"Extracted: ${AST.extract[Any](protocol)}")
+    val withState = extract[Any](Ap(protocol, state))
+    //println(s"Extracted withState: ${AST.extract[Any](withState)}")
+    val withVector = extract[Any](Ap(withState, vector))
+    println(s"Extracted withVector: ${AST.extract[Any](withVector)}")
+    /*
     val chunk = withVector()
     println(s"Proto out: $chunk")
     val (flag, (newState, data)) = chunk.asInstanceOf[(Any, (Any, Any))]
@@ -55,7 +59,10 @@ class Interact(protocol: Any) {
     if (flag == 0)
       Drawing.multidraw(data.asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
     else
-      interact(newState, send(data))
+      // interact(newState, send(data))
+      s"Got $newState, $data"
+    */
+    ""
   }
 
   def store(state: Any) {
