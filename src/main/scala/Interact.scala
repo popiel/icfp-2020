@@ -43,7 +43,8 @@ object IO {
     }
   }
 
-  def store(state: Any) {
+  def store(state: Any) = {
+    AST.strict(state)
   }
 }
 

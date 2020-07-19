@@ -7,8 +7,11 @@ import scala.math.BigInt
 sealed trait AST extends Function0[Any]
 trait Complete extends AST
 object AST {
+  var parseCount = 0
+  var apCount = 0
+  var compCount = 0
+
   type Fun1 = (Any) => Any
-  type Fun2 = (Any) => Fun1
   case class Func(n: String, f: Fun1) extends AST {
     def apply() = f
     override def toString() = n
@@ -26,7 +29,7 @@ object AST {
   }
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
-    def compute(): Any = a match {
+    def compute(): Any = { compCount += 1; a match {
       case Func(n, f) => {
         val s = n.toString
         // println(s"Running $s")
@@ -39,10 +42,12 @@ object AST {
       case false => Ap(Func("f", (x: Any, y: Any) => y), b)
       case x :: y => Ap(Ap(b, x), y)
       case (x, y) => Ap(Ap(b, x), y)
+      case Nil => true
       case x: Complete => Ap(x(), b)
       case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
-    }
+    } }
     def apply() = {
+      apCount += 1
       if (result.isEmpty) result = Some(compute())
       result.get
     }
@@ -73,15 +78,31 @@ object Interpreter {
 }
 
 class Interpreter {
+  import AST._
+
   val symbols = scala.collection.mutable.Map[String, Any]()
 
-  import AST._
+  symbols("interact") = Func("interact", (protocol: Any, state: Any, vector: Any) => {
+    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    val flag :: newState :: data :: _ =
+      extract[List[Any]](Ap(Ap(protocol, state), vector))
+    val strictNewState = IO.store(newState)
+    if (flag == 0) {
+      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](data)))
+    } else {
+      Ap(Ap(Ap(Lookup("interact"), protocol), strictNewState), IO.send(data))
+    }
+  })
+
   case class Lookup(s: String) extends Complete {
+    lazy val apply = symbols(s)
+    /*
     def apply() = {
       // println(s"lookup $s yields ${symbols(s)}")
       // println(s"lookup $s")
       symbols(s)
     }
+    */
     override def toString() = s
   }
 
@@ -118,6 +139,7 @@ class Interpreter {
     parse(Map(), words)
 
   def parse(vars: Map[String, Any], words: Seq[String]): (Any, Seq[String]) = {
+    parseCount += 1
     if (words.head == "ap") {
       val (a, r1) = parse(vars, words.tail)
       val (b, r2) = parse(vars, r1)
@@ -127,7 +149,6 @@ class Interpreter {
 
       case x if x.forall(_.isDigit) => BigInt(x)
       case x if x(0) == '-' && x.tail.forall(_.isDigit) => BigInt(x)
-      case s if s(0) == ':' => Lookup(s)
      
       case "add" => Func("add", (a: Any, b: Any) =>
         extract[BigInt](a) + extract[BigInt](b)
@@ -172,7 +193,7 @@ class Interpreter {
       )
       case "t" => Func("t", (a: Any, b: Any) => a)
 
-      case "modem" => Func("modem", (a: Any) => { val b = strict(a); IO.store(b); b })
+      case "modem" => Func("modem", (a: Any) => IO.store(a))
       case "draw" => Func("draw", (a: Any) => 
         println(Drawing.draw(extract[Seq[(BigInt, BigInt)]](a)))
       )
@@ -181,20 +202,10 @@ class Interpreter {
       )
       case "send" => Func("send", (a: Any) => IO.send(a))
 
-      case "f38" => Func("f38", (x2: Any, x0: Any) =>
-        extract[Any](parse(
-          Map("x2" -> x2, "x0" -> x0),
-          "ap ap ap if0 ap car x0 ap ap cons ap modem ap car ap cdr x0 ap ap cons ap multidraw ap car ap cdr ap cdr x0 nil ap ap ap interact x2 ap modem ap car ap cdr x0 ap send ap car ap cdr ap cdr x0"
-        ))
-      )
-      case "interact" => Func("interact", (x2: Any, x4: Any, x3: Any) =>
-        extract[Any](parse(
-          Map("x2" -> x2, "x4" -> x4, "x3" -> x3),
-          "ap ap f38 x2 ap ap x2 x4 x3"
-        ))
-      )
+      case s => Lookup(s)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
     }, words.tail)
   }
+
 }

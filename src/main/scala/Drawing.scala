@@ -24,7 +24,7 @@ object Drawing {
     }
   }
 
-  val initialSize = (1000, 800)
+  val initialSize = (1600, 1000)
 
   var thePics: Seq[Seq[(BigInt, BigInt)]] = Nil
   lazy val frame: Frame = {
@@ -62,12 +62,18 @@ object Drawing {
         painted = thePics.reverse
         val points = painted.flatten
         if (points.nonEmpty) {
-          val minX = points.map(_._1).min
-          val minY = points.map(_._2).min
-          val maxX = points.map(_._1).max
-          val maxY = points.map(_._2).max
-          val width = (maxX - minX + 1).toInt
-          val height = (maxY - minY + 1).toInt
+          val minX = points.map(_._1).min.toInt
+          val minY = points.map(_._2).min.toInt
+          val maxX = points.map(_._1).max.toInt
+          val maxY = points.map(_._2).max.toInt
+          val width = (maxX - minX + 1)
+          val height = (maxY - minY + 1)
+	  if (width * pixelSize < 500) pixelSize = 1600 / width
+	  if (height * pixelSize < 500) pixelSize = 1000 / height
+	  if (minX * pixelSize < -800) pixelSize = -800 / minX
+	  if (minY * pixelSize < -500) pixelSize = -500 / minY
+	  if (maxX * pixelSize > 800) pixelSize = 800 / maxX
+	  if (maxY * pixelSize > 500) pixelSize = 500 / maxY
 	  if (width * pixelSize > 1600) pixelSize = 1600 / width
 	  if (height * pixelSize > 1000) pixelSize = 1000 / height
           if (width * pixelSize > getSize.width || height * pixelSize > getSize.height) {
@@ -77,12 +83,15 @@ object Drawing {
           if (minX < offset._1 || minY < offset._2) {
             offset = ((minX.toInt min offset._1),(minY.toInt min offset._2))
           }
+
+	  offset = ((getSize.width  / pixelSize - minX - maxX) / -2,
+	            (getSize.height / pixelSize - minY - maxY) / -2)
           g.translate(-offset._1 * pixelSize, -offset._2 * pixelSize)
           val step = 255 / (painted.size + 1)
           for {
             (pic, index) <- painted.zipWithIndex
             col = step * (2 + index)
-            color = new Color(col, col * 2 % 256, col * 3 %256)
+            color = new Color(col, col * 2 % 256, col * 3 % 256, 128)
             point <- pic
           } {
             val x = point._1.toInt * pixelSize
@@ -124,5 +133,6 @@ object Drawing {
     frame.show()
     canvas.repaint()
     pics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")
+    ""
   }
 }
