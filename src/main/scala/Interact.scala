@@ -14,6 +14,7 @@ object IO {
   val uri = URI.create("https://icfpc2020-api.testkontur.ru/aliens/send?apiKey=1340d7f0d5004d40a8b3083863167298")
 
   def send(data: Any): Any = {
+    println("Sending: " + data)
     try {
       val request = HttpRequest.newBuilder
         .uri(uri)
@@ -34,6 +35,7 @@ object IO {
       if (extra != "") {
         println(s"Extra stuff in response: '$extra'")
       }
+      println("Received: " + output)
       output
     } catch {
       case NonFatal(e) =>
@@ -44,7 +46,9 @@ object IO {
   }
 
   def store(state: Any) = {
-    AST.strict(state)
+    val s = AST.strict(state)
+    println("State: " + s)
+    s
   }
 }
 
@@ -58,9 +62,13 @@ case class Interact(name: String) {
   var state: Any = Nil
 
   def click(x: BigInt, y: BigInt): Any = {
+    state = extract[List[Any]](AST.interact(protocol, state, (x, y))).head
+    /*
     state = extract[List[Any]](interpreter.parse(Map("protocol" -> protocol, "state" -> state, "vector" -> (x, y)),
       "ap ap ap interact protocol state vector"
     )).head
+    */
+
     state
   }
 

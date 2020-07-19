@@ -65,6 +65,23 @@ object AST {
     case x: List[_] => x.map(strict(_))
     case x => x
   }
+
+  @tailrec
+  def interact(protocol: Any, state: Any, vector: Any): List[Any] = {
+    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    apCount = 0
+    compCount = 0
+    parseCount = 0
+
+    val flag :: newState :: data :: _ =
+      extract[List[Any]](Ap(Ap(protocol, state), vector))
+    val strictNewState = IO.store(newState)
+    if (flag == 0) {
+      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](data)))
+    } else {
+      interact(protocol, strictNewState, IO.send(data))
+    }
+  }
 }
 
 object Interpreter {
@@ -82,27 +99,10 @@ class Interpreter {
 
   val symbols = scala.collection.mutable.Map[String, Any]()
 
-  symbols("interact") = Func("interact", (protocol: Any, state: Any, vector: Any) => {
-    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
-    val flag :: newState :: data :: _ =
-      extract[List[Any]](Ap(Ap(protocol, state), vector))
-    val strictNewState = IO.store(newState)
-    if (flag == 0) {
-      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](data)))
-    } else {
-      Ap(Ap(Ap(Lookup("interact"), protocol), strictNewState), IO.send(data))
-    }
-  })
+  symbols("interact") = Func("interact", interact _)
 
   case class Lookup(s: String) extends Complete {
     lazy val apply = symbols(s)
-    /*
-    def apply() = {
-      // println(s"lookup $s yields ${symbols(s)}")
-      // println(s"lookup $s")
-      symbols(s)
-    }
-    */
     override def toString() = s
   }
 
