@@ -7,3 +7,6 @@ target/
 build/
 null/
 project/
+log-*
+log.*
+battles.out

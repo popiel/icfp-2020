@@ -12,25 +12,26 @@ object AST {
   var compCount = 0
 
   type Fun1 = (Any) => Any
-  case class Func(n: String, f: Fun1) extends AST {
+  type Fun2 = (Any) => Fun1
+  case class Func(n: String, f: Fun1, c: Int) extends AST {
     def apply() = f
     override def toString() = n
   }
   object Func {
     def apply(n: String, f: Fun1): AST =
-      new Func(n, f)
+      new Func(n, f, 1)
     def apply(n: String, f: (Any, Any) => Any): AST =
       new Func(n, (a: Any) =>
-      new Func(s"$n(_,?)", (b: Any) => f(a, b)))
+      new Func(s"$n(_,?)", (b: Any) => f(a, b), 1), 2)
     def apply(n: String, f: (Any, Any, Any) => Any): AST =
       new Func(n, (a: Any) =>
       new Func(s"$n(_,?,?)", (b: Any) =>
-      new Func(s"$n(_,_,?)", (c: Any) => f(a, b, c))))
+      new Func(s"$n(_,_,?)", (c: Any) => f(a, b, c), 1), 2), 3)
   }
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
     def compute(): Any = { compCount += 1; a match {
-      case Func(n, f) => {
+      case Func(n, f, _) => {
         val s = n.toString
         // println(s"Running $s")
         // println(s"Applying $b to $s")
@@ -44,14 +45,29 @@ object AST {
       case (x, y) => Ap(Ap(b, x), y)
       case Nil => true
       case x: Complete => Ap(x(), b)
+      case f: ((_) => Any) => f.asInstanceOf[Fun1](b)
       case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
     } }
     def apply() = {
+      // do this instead of lazy val because it's faster (no locks)
       apCount += 1
       if (result.isEmpty) result = Some(compute())
       result.get
     }
-    override def toString() = result.map(_.toString).getOrElse(s"ap $a $b")
+    
+    var str: Option[String] = None
+    override def toString() = result.map(_.toString).orElse(str).getOrElse {
+      str = Some(this match {
+        case Ap(Ap(Func("cons", _, 2), a), Nil) => s"List($a)"
+        case Ap(Ap(Func("cons", _, 2), a), b) if b.toString startsWith "List(" =>
+          s"List($a, ${b.toString.drop(5)}"
+        case Ap(Ap(Ap(Func(n, _, x), a), b), c) if x >= 3 => s"$n($a, $b, $c)"
+        case Ap(Ap(Func(n, _, x), a), b) if x >= 2 => s"$n($a, $b)"
+        case Ap(Func(n, _, _), a) => s"$n($a)"
+        case _ => s"Ap($a, $b)"
+      })
+      str.get
+    }
   }
 
   @tailrec def extract[T](a: Any)(implicit m: Manifest[T]): T = a match {
@@ -86,11 +102,14 @@ object AST {
 
 object Interpreter {
   def protocol(s: String): Any = {
-    val interpreter = new Interpreter()
-    interpreter.runFile(s"$s.txt")
-    val p = interpreter.symbols(s)
-    // println(s"Using protocol $p")
-    p
+    // if (s == "galaxy") { Galaxy.galaxy }
+    // else {
+      val interpreter = new Interpreter()
+      interpreter.runFile(s"$s.txt")
+      val p = interpreter.symbols(s)
+      // println(s"Using protocol $p")
+      p
+    // }
   }
 }
 
@@ -103,11 +122,12 @@ class Interpreter {
 
   case class Lookup(s: String) extends Complete {
     lazy val apply = symbols(s)
-    override def toString() = s
+    override def toString() = if (s(0) == ':') "label_" + s.tail else s
   }
 
   def runFile(s: String) {
     Source.fromFile(s).getLines.foreach(run)
+    // for (k <- symbols.keys) symbols(k) = extract[Any](symbols(k))
   }
 
   def run(s: String) {
@@ -120,33 +140,20 @@ class Interpreter {
       if (extra.nonEmpty) {
         println(s"Extra junk at end of definition of ${words(0)}: $extra")
       }
-      symbols(words(0)) = parsed
-      if (words(0)(0) != ':') println(s"Defined ${words(0)} as $parsed")
+      symbols(words(0)) = if (s contains ':') parsed else extract[Any](parsed)
+      if (words(0)(0) != ':') println(s"def ${Lookup(words(0))}: Any = $parsed")
     } else {
       println(s"Non-definition line $s")
     }
   }
 
-  def parse(vars: Map[String, Any], line: String): Any = {
-    val (r, extra) = parse(vars, line.split(" "))
-    if (extra.nonEmpty) {
-      println(s"Extra junk at end of special definition: $extra")
-    }
-    r
-  }
-
-  def parse(words: Seq[String]): (Any, Seq[String]) =
-    parse(Map(), words)
-
-  def parse(vars: Map[String, Any], words: Seq[String]): (Any, Seq[String]) = {
+  def parse(words: Seq[String]): (Any, Seq[String]) = {
     parseCount += 1
     if (words.head == "ap") {
-      val (a, r1) = parse(vars, words.tail)
-      val (b, r2) = parse(vars, r1)
+      val (a, r1) = parse(words.tail)
+      val (b, r2) = parse(r1)
       (Ap(a, b), r2)
     } else (words.head match {
-      case x if vars contains x => vars(x)
-
       case x if x.forall(_.isDigit) => BigInt(x)
       case x if x(0) == '-' && x.tail.forall(_.isDigit) => BigInt(x)
      
@@ -177,7 +184,7 @@ class Interpreter {
       })
       case "dec" => Func("dec", (a: Any) => extract[BigInt](a) - 1)
       case "div" => Func("div", (a: Any, b: Any) => extract[BigInt](a) / extract[BigInt](b))
-      case "eq" => Func("eq", (a: Any, b: Any) => extract[Any](a) == extract[Any](b))
+      case "eq" => Func("myeq", (a: Any, b: Any) => extract[Any](a) == extract[Any](b))
       case "f" => Func("f", (a: Any, b: Any) => b)
       case "i" => Func("i", (a: Any) => a)
       case "if0" => Func("if0", (a: Any, b: Any, c: Any) => if (extract[BigInt](a) == 0) b else c)
@@ -204,7 +211,7 @@ class Interpreter {
 
       case s => Lookup(s)
 
-      case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
+      // case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
     }, words.tail)
   }
 

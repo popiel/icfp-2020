@@ -1,9 +1,24 @@
 import java.net._
 import java.net.http._
 
+import foo._
+
 import scala.util.control.NonFatal
 
-object Main extends App {
+object Main {
+  def main(args: Array[String]) {
+    val interact = Interact("galaxy")
+    val click = if (args.size > 0) {
+      val lines = scala.io.Source.fromFile("states/" + args(0)).getLines
+      interact.state = Modulate.demodulate(lines.next())._1
+      Modulate.demodulate(lines.next())._1.asInstanceOf[(BigInt, BigInt)]
+    } else {
+      (BigInt(0), BigInt(0))
+    }
+    interact.interact(click._1, click._2)
+  }
+
+/*
   try {
     val serverUrl = args(0)
     val playerKey = args(1)
@@ -29,4 +44,5 @@ object Main extends App {
       e.printStackTrace(System.out)
       System.exit(1)
   }
+  */
 }

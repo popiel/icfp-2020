@@ -45,9 +45,35 @@ object IO {
     }
   }
 
+  var lastModulation = "00"
+  var lastHash = ""
+  var lastClick = (0, 0)
   def store(state: Any) = {
     val s = AST.strict(state)
+    val m = Modulate.modulate(s)
+    val d = java.security.MessageDigest.getInstance("MD5").digest(m.getBytes)
+    val h = d.map(x => ("0" + ((x + 256) % 256).toHexString).takeRight(2)).mkString
+
+    val f = new java.io.File(s"states/$h")
+    if (!f.exists) {
+      val o = new java.io.FileWriter(f)
+      try {
+        val p = new java.io.PrintWriter(o)
+	p.println(lastModulation)
+	p.println(Modulate.modulate(lastClick))
+	p.println("State: " + s)
+	p.println("Click: " + lastClick)
+	p.println("From: " + lastHash)
+	p.flush()
+      } finally {
+        o.close()
+      }
+    }
+    lastHash = h
+    lastModulation = m
+
     println("State: " + s)
+    println("Hash: " + h)
     s
   }
 }
@@ -75,8 +101,9 @@ case class Interact(name: String) {
   @tailrec final def interact(x: BigInt, y: BigInt, n: Int = 0) {
     click(x, y)
     println(s"Waiting for click $n")
-    val next = Await.result(Drawing.nextClick, 10 minutes)
+    val next = Await.result(Drawing.nextClick, 10.minutes)
     println(s"Got click $next")
+    IO.lastClick = next
     interact(next._1, next._2, n + 1)
   }
 }
