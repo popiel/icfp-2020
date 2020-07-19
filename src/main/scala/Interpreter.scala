@@ -127,28 +127,17 @@ class Interpreter {
     }
   }
 
-  def parse(vars: Map[String, Any], line: String): Any = {
-    val (r, extra) = parse(vars, line.split(" "))
-    if (extra.nonEmpty) {
-      println(s"Extra junk at end of special definition: $extra")
-    }
-    r
-  }
-
-  def parse(words: Seq[String]): (Any, Seq[String]) =
-    parse(Map(), words)
-
-  def parse(vars: Map[String, Any], words: Seq[String]): (Any, Seq[String]) = {
+  def parse(words: Seq[String]): (Any, Seq[String]) = {
     parseCount += 1
     if (words.head == "ap") {
-      val (a, r1) = parse(vars, words.tail)
-      val (b, r2) = parse(vars, r1)
+      val (a, r1) = parse(words.tail)
+      val (b, r2) = parse(r1)
       (Ap(a, b), r2)
     } else (words.head match {
-      case x if vars contains x => vars(x)
-
       case x if x.forall(_.isDigit) => BigInt(x)
       case x if x(0) == '-' && x.tail.forall(_.isDigit) => BigInt(x)
+
+      case s if s(0) == ':' => Lookup(s)
      
       case "add" => Func("add", (a: Any, b: Any) =>
         extract[BigInt](a) + extract[BigInt](b)
@@ -201,8 +190,6 @@ class Interpreter {
         println(Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](a)))
       )
       case "send" => Func("send", (a: Any) => IO.send(a))
-
-      case s => Lookup(s)
 
       case _ => throw new IllegalArgumentException(s"Unknown operator ${words.head}")
     }, words.tail)
