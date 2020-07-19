@@ -2,10 +2,11 @@ package foo
 
 import java.net._
 import java.net.http._
-import scala.math
-import scala.util.control._
+import scala.annotation._
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.math
+import scala.util.control._
 
 import AST._
 
@@ -62,7 +63,7 @@ case class Interact(name: String) {
     state
   }
 
-  def interact(x: BigInt, y: BigInt, n: Int = 0) {
+  @tailrec final def interact(x: BigInt, y: BigInt, n: Int = 0) {
     click(x, y)
     println(s"Waiting for click $n")
     val next = Await.result(Drawing.nextClick, 10 minutes)

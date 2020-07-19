@@ -1,5 +1,6 @@
 package foo
 
+import scala.annotation._
 import scala.io._
 import scala.math.BigInt
 
@@ -8,59 +9,56 @@ trait Complete extends AST
 object AST {
   type Fun1 = (Any) => Any
   type Fun2 = (Any) => Fun1
-  case class Func[A,T](n: String, f: (A) => T) extends AST {
-    def apply() = (a: A) => {
-      println(s"Running $n on $a")
-      var r = f(a)
-      println(s"Running $n on $a result $r")
-      r
-    }
+  case class Func(n: String, f: Fun1) extends AST {
+    def apply() = f
     override def toString() = n
   }
   object Func {
-    def apply[A,T](n: String, f: (A) => T): AST =
+    def apply(n: String, f: Fun1): AST =
       new Func(n, f)
-    def apply[A,B,T](n: String, f: (A, B) => T): AST =
-      new Func(n, (a: A) =>
-      new Func(s"$n(_,?)", (b: B) => f(a, b)))
-    def apply[A,B,C,T](n: String, f: (A, B, C) => T): AST =
-      new Func(n, (a: A) =>
-      new Func(s"$n(_,?,?)", (b: B) =>
-      new Func(s"$n(_,_,?)", (c: C) => f(a, b, c))))
+    def apply(n: String, f: (Any, Any) => Any): AST =
+      new Func(n, (a: Any) =>
+      new Func(s"$n(_,?)", (b: Any) => f(a, b)))
+    def apply(n: String, f: (Any, Any, Any) => Any): AST =
+      new Func(n, (a: Any) =>
+      new Func(s"$n(_,?,?)", (b: Any) =>
+      new Func(s"$n(_,_,?)", (c: Any) => f(a, b, c))))
   }
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
-    def compute() {
-      result = Some(a match {
-        case Func(n, f) => {
-          val s = n.toString
-          // println(s"Running $s")
-          // println(s"Applying $b to $s")
-          val r = f.asInstanceOf[Fun1](b)
-          // println(s"Yielded $r from $s($b)")
-          r
-        }
-        case true => Ap(Func("t", (x: Any, y: Any) => x), b)()
-        case false => Ap(Func("f", (x: Any, y: Any) => y), b)()
-	case x :: y => Ap(Ap(b, x), y)()
-	case (x, y) => Ap(Ap(b, x), y)()
-        case x: Complete => Ap(x(), b)()
-        case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
-      })
+    def compute(): Any = a match {
+      case Func(n, f) => {
+        val s = n.toString
+        // println(s"Running $s")
+        // println(s"Applying $b to $s")
+        val r = f(b)
+        // println(s"Yielded $r from $s($b)")
+        r
+      }
+      case true => Ap(Func("t", (x: Any, y: Any) => x), b)
+      case false => Ap(Func("f", (x: Any, y: Any) => y), b)
+      case x :: y => Ap(Ap(b, x), y)
+      case (x, y) => Ap(Ap(b, x), y)
+      case x: Complete => Ap(x(), b)
+      case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
     }
-    def apply() = result.getOrElse { compute(); result.get }
+    def apply() = {
+      if (result.isEmpty) result = Some(compute())
+      result.get
+    }
     override def toString() = result.map(_.toString).getOrElse(s"ap $a $b")
   }
 
-  def extract[T](a: Any)(implicit m: Manifest[T]): T = a match {
-    case x: Complete =>
-      val s = x.toString
-      // println(s"Running $m from $s")
-      val r = extract[T](x())
-      // println(s"yielded $r from $s")
-      r
+  @tailrec def extract[T](a: Any)(implicit m: Manifest[T]): T = a match {
+    case x: Complete => extract[T](x())
     case m(x) => x
     case _ => throw new IllegalArgumentException(s"Cannot extract $m from $a")
+  }
+  def strict(a: Any): Any = a match {
+    case x: Complete => strict(x())
+    case (x, y) => (strict(x), strict(y))
+    case x: List[_] => x.map(strict(_))
+    case x => x
   }
 }
 
@@ -102,7 +100,7 @@ class Interpreter {
         println(s"Extra junk at end of definition of ${words(0)}: $extra")
       }
       symbols(words(0)) = parsed
-      println(s"Defined ${words(0)} as $parsed")
+      if (words(0)(0) != ':') println(s"Defined ${words(0)} as $parsed")
     } else {
       println(s"Non-definition line $s")
     }
@@ -174,7 +172,7 @@ class Interpreter {
       )
       case "t" => Func("t", (a: Any, b: Any) => a)
 
-      case "modem" => Func("modem", (a: Any) => { IO.store(a); a })
+      case "modem" => Func("modem", (a: Any) => { val b = strict(a); IO.store(b); b })
       case "draw" => Func("draw", (a: Any) => 
         println(Drawing.draw(extract[Seq[(BigInt, BigInt)]](a)))
       )

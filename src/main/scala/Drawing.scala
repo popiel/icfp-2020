@@ -43,9 +43,15 @@ object Drawing {
     f
   }
   var offset: (Int, Int) = (0, 0)
+  var pos: Option[(Int, Int)] = None
+  var lastClickTime = System.currentTimeMillis()
   var nextClickPromise = Promise[(Int, Int)]()
   def nextClick = {
     nextClickPromise = Promise[(Int, Int)]()
+    if (pos.nonEmpty && System.currentTimeMillis() > lastClickTime + 100) {
+      lastClickTime = System.currentTimeMillis()
+      nextClickPromise.trySuccess(pos.get)
+    }
     nextClickPromise.future
   }
   var pixelSize = 8
@@ -62,6 +68,8 @@ object Drawing {
           val maxY = points.map(_._2).max
           val width = (maxX - minX + 1).toInt
           val height = (maxY - minY + 1).toInt
+	  if (width * pixelSize > 1600) pixelSize = 1600 / width
+	  if (height * pixelSize > 1000) pixelSize = 1000 / height
           if (width * pixelSize > getSize.width || height * pixelSize > getSize.height) {
             frame.setSize(width * pixelSize + 20, height * pixelSize + 50)
             setSize(width * pixelSize, height * pixelSize)
@@ -70,40 +78,49 @@ object Drawing {
             offset = ((minX.toInt min offset._1),(minY.toInt min offset._2))
           }
           g.translate(-offset._1 * pixelSize, -offset._2 * pixelSize)
-	  val step = 255 / (painted.size + 1)
+          val step = 255 / (painted.size + 1)
           for {
             (pic, index) <- painted.zipWithIndex
-	    col = step * (2 + index)
-	    color = new Color(col, col * 2 % 256, col * 3 %256)
+            col = step * (2 + index)
+            color = new Color(col, col * 2 % 256, col * 3 %256)
             point <- pic
           } {
-	    val x = point._1.toInt * pixelSize
-	    val y = point._2.toInt * pixelSize
+            val x = point._1.toInt * pixelSize
+            val y = point._2.toInt * pixelSize
             g.setColor(color)
             g.drawLine(x, y, x, y)
             g.fillRect(x, y, pixelSize, pixelSize)
           }
-	}
+        }
       }
     }
-    c.addMouseListener(new MouseListener() {
-      def mouseClicked(e: MouseEvent) {
+    val listener = new MouseListener() with MouseMotionListener {
+      def register(e: MouseEvent) {
         val x = (e.getX() + (offset._1 * pixelSize)) / pixelSize
         val y = (e.getY() + (offset._2 * pixelSize)) / pixelSize
-        nextClickPromise.success((x, y))
+        pos = Some((x, y))
+        if (System.currentTimeMillis() > lastClickTime + 100) {
+          lastClickTime = System.currentTimeMillis()
+          nextClickPromise.trySuccess((x, y))
+        }
       }
+      def mouseClicked(e: MouseEvent) {}
       def mouseEntered(e: MouseEvent) {}
-      def mouseExited(e: MouseEvent) {}
-      def mousePressed(e: MouseEvent) {}
-      def mouseReleased(e: MouseEvent) {}
-    })
+      def mouseExited(e: MouseEvent) { pos = None }
+      def mousePressed(e: MouseEvent) { register(e) }
+      def mouseReleased(e: MouseEvent) { pos = None }
+      def mouseMoved(e: MouseEvent) {}
+      def mouseDragged(e: MouseEvent) { if (pos.nonEmpty) mouseClicked(e) }
+    }
+    c.addMouseListener(listener)
+    c.addMouseMotionListener(listener)
     c.setBackground(new Color(0, 0, 0))
     c.setSize(initialSize._1, initialSize._2)
     c
   }
 
   def multidraw(pics: Seq[Seq[(BigInt, BigInt)]]) = {
-    thePics = pics
+    thePics = AST.strict(pics).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]]
     frame.show()
     canvas.repaint()
     pics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")

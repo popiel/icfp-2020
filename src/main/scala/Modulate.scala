@@ -25,7 +25,7 @@ object Modulate {
     }
   }
 
-  def modulate(v: Any): String = v match {
+  def modulate(v: Any): String = AST.strict(v) match {
     case Nil => "00"
     case (a: Any, b: Any) => "11" + modulate(a) + modulate(b)
     case a :: b => "11" + modulate(a) + modulate(b)
