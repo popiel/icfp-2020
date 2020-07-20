@@ -9,6 +9,29 @@ object Main {
   def main(args: Array[String]) {
     val interact = Interact("galaxy")
     val click = if (args.size > 0) {
+// Boot sequence to get symbols crunched
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(0,0)
+      interact.click(8,4)
+      interact.click(2,-7)
+      interact.click(2,-8)
+      interact.click(3,6)
+      interact.click(0,-14)
+      interact.click(-3,10)
+      interact.click(-3,9)
+      interact.click(-3,10)
+      interact.click(-4,10)
+      interact.click(9,-2)
+      interact.click(9,-3)
+      interact.click(-4,10)
+      interact.click(1,4)
+
       val lines = scala.io.Source.fromFile("states/" + args(0)).getLines
       interact.state = Modulate.demodulate(lines.next())._1
       Modulate.demodulate(lines.next())._1.asInstanceOf[(BigInt, BigInt)]
