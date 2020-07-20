@@ -47,21 +47,9 @@ object AST {
   def crunch(instructions: List[Any]): List[Any] = {
     // println("crunching: " + instructions)
     instructions match {
-      case (f: Func1) :: x :: r => 
-        // println("begin computing " + f)
-	val o = f.f(x)
-	// println("end computing " + f + " yielded " + o)
-	crunch(flip(o) ++: r)
-      case (f: Func2) :: x :: y :: r => 
-        // println("begin computing " + f)
-	val o = f.f(x, y)
-	// println("end computing " + f + " yielded " + o)
-	crunch(flip(o) ++: r)
-      case (f: Func3) :: x :: y :: z :: r =>
-        // println("begin computing " + f)
-	val o = f.f(x, y, z)
-	// println("end computing " + f + " yielded " + o)
-	crunch(flip(o) ++: r)
+      case (f: Func1) :: x :: r => crunch(flip(f.f(x)) ++: r)
+      case (f: Func2) :: x :: y :: r => crunch(flip(f.f(x, y)) ++: r)
+      case (f: Func3) :: x :: y :: z :: r => crunch(flip(f.f(x, y, z)) ++: r)
       case true :: x :: y :: r => crunch(flip(x) ++: r)
       case false :: x :: y :: r => crunch(flip(y) ++: r)
       case Nil :: x :: r => crunch(true :: r)
@@ -94,10 +82,17 @@ object AST {
     case m(x) => x
     case _ => throw new IllegalArgumentException(s"Cannot extract $m from $a")
   }
+
+  @tailrec def strictList(l : Any, acc: (Any) => Any): Any = {
+    l match {
+      case (h, t) => strictList(t, (o) => acc((strict(h), o)))
+      case _ => acc(strict(l))
+    }
+  }
+
   def strict(a: Any): Any = a match {
     case x: Complete => strict(x())
-    case (x, y) => (strict(x), strict(y))
-    case x: List[_] => x.map(strict(_))
+    case (x, y) => strictList(a, (z) => z)
     case x => x
   }
 
@@ -107,13 +102,14 @@ object AST {
     compCount = 0
     parseCount = 0
 
-    val flag :: newState :: data :: _ =
-      extract[List[Any]](Ap(Ap(protocol, state), vector))
+    val (flag, x1) = extract[(Any, Any)](Ap(Ap(protocol, state), vector))
+    val (newState, x2) = extract[(Any, Any)](x1)
+    val (data, _) = extract[(Any, Any)](x2)
 
     println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     val strictNewState = IO.store(newState)
     if (flag == 0) {
-      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](strict(data))))
+      List(strictNewState, Drawing.multidraw(strict(data)))
     } else {
       interact(protocol, strictNewState, IO.send(strict(data)))
     }
@@ -142,6 +138,7 @@ class Interpreter {
     lazy val apply = {
       condensed.getOrElseUpdate(s, symbols(s) match {
         case a: Ap => 
+          println("Condensing symbol " + s + " from " + a)
           val o = flop(crunch(flip(symbols(s))))
           println("Condensed symbol " + s + " to " + o)
 	  o
@@ -201,14 +198,7 @@ class Interpreter {
         case l: Seq[_] => l.tail
         case (_, x) => x
       })
-      case "cons" => Func("cons", (a: Any, b: Any) => {
-        val (x, y) = (a, extract[Any](b))
-        // println(s"Really running cons on $x, $y")
-        y match {
-          case l: List[_] => x :: l
-          case _ => (x, y)
-        }
-      })
+      case "cons" => Func("cons", (a: Any, b: Any) => (a, b))
       case "dec" => Func("dec", (a: Any) => extract[BigInt](a) - 1)
       case "div" => Func("div", (a: Any, b: Any) => extract[BigInt](a) / extract[BigInt](b))
       case "eq" => Func("eq", (a: Any, b: Any) => extract[Any](a) == extract[Any](b))
