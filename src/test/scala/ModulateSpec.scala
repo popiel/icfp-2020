@@ -49,7 +49,7 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
 
   import AST.extract
 
-  ignore("interpreter") {
+  describe("interpreter") {
     it("cons should properly build a list") {
       val interp = new Interpreter()
       interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
@@ -126,7 +126,7 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
       extract[Seq[_]](i.click(0, 0)).toSet shouldBe Set((0, 0))
       extract[Seq[_]](i.click(1, 0)).toSet shouldBe Set((0, 0), (1, 0))
     }
-    it("galaxy") {
+    ignore("galaxy") {
       Interact.interact(0, 0) shouldBe List(List(), ())
     }
   }

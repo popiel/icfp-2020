@@ -13,82 +13,77 @@ object AST {
   var compCount = 0
 
   type Fun1 = (Any) => Any
-  case class Func(n: String, f: Fun1) extends AST {
+  case class Func1(n: String, f: Fun1) extends AST {
+    def apply() = f
+    override def toString() = n
+  }
+  case class Func2(n: String, f: (Any, Any) => Any) extends AST {
+    def apply() = f
+    override def toString() = n
+  }
+  case class Func3(n: String, f: (Any, Any, Any) => Any) extends AST {
     def apply() = f
     override def toString() = n
   }
   object Func {
     def apply(n: String, f: Fun1): AST =
-      new Func(n, f)
+      new Func1(n, f)
     def apply(n: String, f: (Any, Any) => Any): AST =
-      new Func(n, (a: Any) =>
-      new Func(s"$n(_,?)", (b: Any) => f(a, b)))
+      new Func2(n, f)
     def apply(n: String, f: (Any, Any, Any) => Any): AST =
-      new Func(n, (a: Any) =>
-      new Func(s"$n(_,?,?)", (b: Any) =>
-      new Func(s"$n(_,_,?)", (c: Any) => f(a, b, c))))
+      new Func3(n, f)
   }
 
-  @tailrec def chaseLookups(c: Any): Any = {
-    c match {
-      case l: Lookup => chaseLookups(l())
-      case x => x
+  @tailrec
+  def flip(a: Any, acc: List[Any] = Nil): List[Any] = {
+    a match {
+      case l: Lookup => flip(l(), acc)
+      case ap: Ap => flip(ap.a, ap.b :: acc)
+      case x => x :: acc
     }
   }
 
-  @tailrec def compute(ap: Ap, pending: List[Ap] = Nil) {
-    if ((pending.size + 1) % 1000 == 0) { print(".") }
-    // println("Pending size: " + pending.size)
-    if (ap.result.isEmpty) {
-      chaseLookups(ap.a) match {
-        case x: Ap if x.result.isEmpty => compute(x, ap :: pending)
-	case c =>
-          compCount += 1
-	  ap.result = Some(c match {
-            case Func(n, f) => f(ap.b)
-            case true => Ap(Func("t", (x: Any, y: Any) => x), ap.b)
-            case false => Ap(Func("f", (x: Any, y: Any) => y), ap.b)
-            case x :: y => Ap(Ap(ap.b, x), y)
-            case (x, y) => Ap(Ap(ap.b, x), y)
-            case Nil => true
-            case x: Complete => Ap(x(), ap.b)
-            case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
-	  })
-          if (pending.nonEmpty) compute(pending.head, pending.tail)
-      }
-    } else {
-      if (pending.nonEmpty) compute(pending.head, pending.tail)
+  @tailrec
+  def crunch(instructions: List[Any]): List[Any] = {
+    // println("crunching: " + instructions)
+    instructions match {
+      case (f: Func1) :: x :: r => 
+        // println("begin computing " + f)
+	val o = f.f(x)
+	// println("end computing " + f + " yielded " + o)
+	crunch(flip(o) ++: r)
+      case (f: Func2) :: x :: y :: r => 
+        // println("begin computing " + f)
+	val o = f.f(x, y)
+	// println("end computing " + f + " yielded " + o)
+	crunch(flip(o) ++: r)
+      case (f: Func3) :: x :: y :: z :: r =>
+        // println("begin computing " + f)
+	val o = f.f(x, y, z)
+	// println("end computing " + f + " yielded " + o)
+	crunch(flip(o) ++: r)
+      case true :: x :: y :: r => crunch(flip(x) ++: r)
+      case false :: x :: y :: r => crunch(flip(y) ++: r)
+      case Nil :: x :: r => crunch(true :: r)
+      case (x :: y) :: b :: r => crunch(flip(b) ++: (x :: y :: r))
+      case (x, y) :: b :: r => crunch(flip(b) ++: (x :: y :: r))
+      case _ => instructions
     }
   }
+
+  def flop(ins: List[Any]): Any =
+    ins.reduceLeft{ (acc, x) => Ap(acc, x) }
 
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
 
-    /*
     def compute(): Any = {
       compCount += 1
-      a match {
-        case Func(n, f) => {
-          val s = n.toString
-          // println(s"Running $s")
-          // println(s"Applying $b to $s")
-          val r = f(b)
-          // println(s"Yielded $r from $s($b)")
-          r
-        }
-        case true => Ap(Func("t", (x: Any, y: Any) => x), b)
-        case false => Ap(Func("f", (x: Any, y: Any) => y), b)
-        case x :: y => Ap(Ap(b, x), y)
-        case (x, y) => Ap(Ap(b, x), y)
-        case Nil => true
-        case x: Complete => Ap(x(), b)
-        case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
-      }
+      flop(crunch(flip(this)))
     }
-    */
     def apply() = {
       apCount += 1
-      if (result.isEmpty) compute(this)
+      if (result.isEmpty) result = Some(compute())
       result.get
     }
     override def toString() = result.map(_.toString).getOrElse(s"ap $a $b")
@@ -118,9 +113,9 @@ object AST {
     println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     val strictNewState = IO.store(newState)
     if (flag == 0) {
-      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](data)))
+      List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](strict(data))))
     } else {
-      interact(protocol, strictNewState, IO.send(data))
+      interact(protocol, strictNewState, IO.send(strict(data)))
     }
   }
 }
@@ -139,11 +134,20 @@ class Interpreter {
   import AST._
 
   val symbols = scala.collection.mutable.Map[String, Any]()
+  val condensed = scala.collection.mutable.Map[String, Any]()
 
   symbols("interact") = Func("interact", interact _)
 
   case class Labeled(s: String) extends Lookup {
-    def apply() = { println(s"Lookup $s"); symbols(s) }
+    lazy val apply = {
+      condensed.getOrElseUpdate(s, symbols(s) match {
+        case a: Ap => 
+          val o = flop(crunch(flip(symbols(s))))
+          println("Condensed symbol " + s + " to " + o)
+	  o
+	case x => x
+      })
+    }
     override def toString() = s
   }
 
@@ -184,10 +188,10 @@ class Interpreter {
         extract[BigInt](a) + extract[BigInt](b)
       )
       case "b" => Func("b", (a: Any, b: Any, c: Any) =>
-        Ap(a, Ap(b, c))()
+        Ap(a, Ap(b, c))
       )
       case "c" => Func("c", (a: Any, b: Any, c: Any) =>
-        Ap(Ap(a, c), b)()
+        Ap(Ap(a, c), b)
       )
       case "car" => Func("car", (a: Any) => extract[Any](a) match{
         case l: Seq[_] => l.head
@@ -198,7 +202,7 @@ class Interpreter {
         case (_, x) => x
       })
       case "cons" => Func("cons", (a: Any, b: Any) => {
-        val (x, y) = (extract[Any](a), extract[Any](b))
+        val (x, y) = (a, extract[Any](b))
         // println(s"Really running cons on $x, $y")
         y match {
           case l: List[_] => x :: l
@@ -219,7 +223,7 @@ class Interpreter {
       case "nil" => Nil
       case "pwr2" => Func("pwr2", (a: Any) => BigInt(1) << extract[BigInt](a).toInt)
       case "s" => Func("s", (a: Any, b: Any, c: Any) =>
-        Ap(Ap(a,c),Ap(b,c))()
+        Ap(Ap(a,c),Ap(b,c))
       )
       case "t" => Func("t", (a: Any, b: Any) => a)
 
