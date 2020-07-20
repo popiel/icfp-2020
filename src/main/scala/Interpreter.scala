@@ -6,6 +6,7 @@ import scala.math.BigInt
 
 sealed trait AST extends Function0[Any]
 trait Complete extends AST
+trait Lookup extends Complete
 object AST {
   var parseCount = 0
   var apCount = 0
@@ -27,28 +28,67 @@ object AST {
       new Func(s"$n(_,?,?)", (b: Any) =>
       new Func(s"$n(_,_,?)", (c: Any) => f(a, b, c))))
   }
+
+  @tailrec def chaseLookups(c: Any): Any = {
+    c match {
+      case l: Lookup => chaseLookups(l())
+      case x => x
+    }
+  }
+
+  @tailrec def compute(ap: Ap, pending: List[Ap] = Nil) {
+    if ((pending.size + 1) % 1000 == 0) { print(".") }
+    // println("Pending size: " + pending.size)
+    if (ap.result.isEmpty) {
+      chaseLookups(ap.a) match {
+        case x: Ap if x.result.isEmpty => compute(x, ap :: pending)
+	case c =>
+          compCount += 1
+	  ap.result = Some(c match {
+            case Func(n, f) => f(ap.b)
+            case true => Ap(Func("t", (x: Any, y: Any) => x), ap.b)
+            case false => Ap(Func("f", (x: Any, y: Any) => y), ap.b)
+            case x :: y => Ap(Ap(ap.b, x), y)
+            case (x, y) => Ap(Ap(ap.b, x), y)
+            case Nil => true
+            case x: Complete => Ap(x(), ap.b)
+            case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
+	  })
+          if (pending.nonEmpty) compute(pending.head, pending.tail)
+      }
+    } else {
+      if (pending.nonEmpty) compute(pending.head, pending.tail)
+    }
+  }
+
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
-    def compute(): Any = { compCount += 1; a match {
-      case Func(n, f) => {
-        val s = n.toString
-        // println(s"Running $s")
-        // println(s"Applying $b to $s")
-        val r = f(b)
-        // println(s"Yielded $r from $s($b)")
-        r
+
+    /*
+    def compute(): Any = {
+      compCount += 1
+      a match {
+        case Func(n, f) => {
+          val s = n.toString
+          // println(s"Running $s")
+          // println(s"Applying $b to $s")
+          val r = f(b)
+          // println(s"Yielded $r from $s($b)")
+          r
+        }
+        case true => Ap(Func("t", (x: Any, y: Any) => x), b)
+        case false => Ap(Func("f", (x: Any, y: Any) => y), b)
+        case x :: y => Ap(Ap(b, x), y)
+        case (x, y) => Ap(Ap(b, x), y)
+        case Nil => true
+        case x: Complete => Ap(x(), b)
+        case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
       }
-      case true => Ap(Func("t", (x: Any, y: Any) => x), b)
-      case false => Ap(Func("f", (x: Any, y: Any) => y), b)
-      case x :: y => Ap(Ap(b, x), y)
-      case (x, y) => Ap(Ap(b, x), y)
-      case Nil => true
-      case x: Complete => Ap(x(), b)
-      case x => throw new IllegalArgumentException(s"Cannot apply non-function $x")
-    } }
+    }
+    */
     def apply() = {
       apCount += 1
-      if (result.isEmpty) result = Some(compute())
+      if (result.isEmpty) compute(this)
       result.get
     }
     override def toString() = result.map(_.toString).getOrElse(s"ap $a $b")
@@ -68,13 +108,14 @@ object AST {
 
   @tailrec
   def interact(protocol: Any, state: Any, vector: Any): List[Any] = {
-    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     apCount = 0
     compCount = 0
     parseCount = 0
 
     val flag :: newState :: data :: _ =
       extract[List[Any]](Ap(Ap(protocol, state), vector))
+
+    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     val strictNewState = IO.store(newState)
     if (flag == 0) {
       List(strictNewState, Drawing.multidraw(extract[Seq[Seq[(BigInt, BigInt)]]](data)))
@@ -101,8 +142,8 @@ class Interpreter {
 
   symbols("interact") = Func("interact", interact _)
 
-  case class Lookup(s: String) extends Complete {
-    lazy val apply = symbols(s)
+  case class Labeled(s: String) extends Lookup {
+    def apply() = { println(s"Lookup $s"); symbols(s) }
     override def toString() = s
   }
 
@@ -137,7 +178,7 @@ class Interpreter {
       case x if x.forall(_.isDigit) => BigInt(x)
       case x if x(0) == '-' && x.tail.forall(_.isDigit) => BigInt(x)
 
-      case s if s(0) == ':' => Lookup(s)
+      case s if s(0) == ':' => Labeled(s)
      
       case "add" => Func("add", (a: Any, b: Any) =>
         extract[BigInt](a) + extract[BigInt](b)
