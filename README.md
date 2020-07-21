@@ -1,5 +1,7 @@
 # icfp-2020
 
+Install scala binaries from https://www.scala-lang.org/download/
+
 Compile with
 
   ./build.sh
