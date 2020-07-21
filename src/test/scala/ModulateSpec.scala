@@ -42,18 +42,18 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
         demodulate("1101001100001") shouldBe ((0, 1), "")
       }
       it("should properly decode a short list") {
-        demodulate("1101100001110110001000") shouldBe (List(1, 2), "")
+        demodulate("1101100001110110001000") shouldBe ((1, (2, Nil)), "")
       }
     }
   }
 
-  import AST.extract
+  import AST._
 
-  ignore("interpreter") {
+  describe("interpreter") {
     it("cons should properly build a list") {
       val interp = new Interpreter()
       interp.run(":1029 = ap ap cons 7 ap ap cons 8 nil")
-      extract[Any](interp.symbols(":1029")).toString() shouldBe "List(7, 8)"
+      strict(interp.symbols(":1029")).toString() shouldBe "(7,(8,List()))"
     }
 
     it("recursion should not explode") {
@@ -113,7 +113,7 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
       val interp = new Interpreter()
       interp.run(":checkerboard = ap ap s ap ap b s ap ap c ap ap b c ap ap b ap c ap c ap ap s ap ap b s ap ap b ap b ap ap s i i lt eq ap ap s mul i nil ap ap s ap ap b s ap ap b ap b cons ap ap s ap ap b s ap ap b ap b cons ap c div ap c ap ap s ap ap b b ap ap c ap ap b b add neg ap ap b ap s mul div ap ap c ap ap b b :checkerboard ap ap c add 2")
       interp.run(":test = ap ap :checkerboard 7 0")
-      extract[Seq[Any]](interp.symbols(":test")).toSet shouldBe Set((0,0), (0,2), (0,4), (0,6), (1,1), (1,3), (1,5), (2,0), (2,2), (2,4), (2,6), (3,1), (3,3), (3,5), (4,0), (4,2), (4,4), (4,6), (5,1), (5,3), (5,5), (6,0), (6,2), (6,4), (6,6))
+      listify(strict(interp.symbols(":test"))).asInstanceOf[List[Any]].toSet shouldBe Set((0,0), (0,2), (0,4), (0,6), (1,1), (1,3), (1,5), (2,0), (2,2), (2,4), (2,6), (3,1), (3,3), (3,5), (4,0), (4,2), (4,4), (4,6), (5,1), (5,3), (5,5), (6,0), (6,2), (6,4), (6,6))
     }
   }
 
@@ -123,10 +123,10 @@ class ModulateSpec extends AnyFunSpec with should.Matchers {
     }
     it("statefuldraw") {
       val i = Interact("statefuldraw")
-      extract[Seq[_]](i.click(0, 0)).toSet shouldBe Set((0, 0))
-      extract[Seq[_]](i.click(1, 0)).toSet shouldBe Set((0, 0), (1, 0))
+      extract[Seq[_]](listify(i.click(0, 0))).toSet shouldBe Set((0, 0))
+      extract[Seq[_]](listify(i.click(1, 0))).toSet shouldBe Set((0, 0), (1, 0))
     }
-    it("galaxy") {
+    ignore("galaxy") {
       Interact.interact(0, 0) shouldBe List(List(), ())
     }
   }

@@ -1,0 +1,114 @@
+package foo
+
+import scala.annotation._
+import scala.io._
+import scala.math.BigInt
+
+trait Compiled {
+  import AST._
+
+  def ap(f: Fun1, x: Any): Any = f(x)
+  def ap(f: Fun1): Fun1 = f
+  def ap[X](b: Boolean, x: X, y: X): X = if (b) x else y
+  def ap(b: Boolean, x: Any): Fun1 = (y: Any) => if (b) x else y
+  def ap(b: Boolean): Fun2 = (x: Any) => (y: Any) => if (b) x else y
+  def ap[X, Y, Z](p: (X, Y), f: (X) => (Y) => Z): Z = f(p._1)(p._2)
+  def ap[X, Y](p: (X, Y)): (((X) => (Y) => Any) => Any) = (f: (X) => (Y) => Any) => f(p._1)(p._2)
+  def ap[X, Z](l: List[X], f: (X) => (List[X]) => Z): Z = f(l.head)(l.tail)
+  def ap[X](l: List[X]): (((X) => (List[X]) => Any) => Any) = (f: (X) => (List[X]) => Any) => f(l.head)(l.tail)
+  def ap: Fun2 = (a: Any) => a match {
+    case b: Boolean => ap(b)
+    case Nil => (x: Any) => true
+    case l: List[_] => ap(l)
+    case p: (_, _) => ap(p)
+  }
+    
+  def add(a: BigInt, b: BigInt) = a + b
+  // def add(a: BigInt) = (b: BigInt) => a + b
+  def add = (a: BigInt) => (b: BigInt) => a + b
+
+  def b[X, Y, Z](x: (Y) => X, y: (Z) => Y, z: Z) = x(y(z))
+  def b[X, Y, Z](x: (Y) => X, y: (Z) => Y) = (z: Z) => x(y(z))
+  // def b[X, Y, Z](x: (Y) => X) = (y: (Z) => Y) => (z: Z) => x(y(z))
+  def b = (x: Fun1) => (y: Any) => (z: Any) => x(y.asInstanceOf[Fun1](z))
+
+  def c[X, Y, Z](x: (Z, Y) => X, y: Y, z: Z) = x(z, y)
+  def c[X, Y, Z](x: (Z, Y) => X, y: Y) = (z: Z) => x(z, y)
+  // def c[X, Y, Z](x: (Z, Y) => X) = (y: Y) => (z: Z) => x(z, y)
+  def c = (x: (Any, Any) => Any) => (y: Any) => (z: Any) => x(z, y)
+
+  def car[X](x: List[X]) = x.head
+  // def car[X](x: (X, _)) = x._1
+  def car = (a: Any) => extract[Any](a) match {
+    case l: Seq[_] => l.head
+    case (x, _) => x
+  }
+
+  def cdr[X](x: List[X]) = x.tail
+  // def cdr[X](x: (_, X)) = x._2
+  def cdr = (a: Any) => extract[Any](a) match {
+    case l: Seq[_] => l.tail
+    case (_, x) => x
+  }
+
+  def cons[X](a: X, b: List[X]) = a :: b
+  def cons[X, Y](a: X, b: Y) = (a, b)
+  def cons[X](a: X) = (b: Any) => extract[Any](b) match {
+    case l: List[_] => a :: l
+    case y => (a, y)
+  }
+
+  // def dec(a: BigInt) = a - 1
+  def dec = (a: BigInt) => a - 1
+
+  def div(a: BigInt, b: BigInt) = a / b
+  // def div(a: BigInt) = (b: BigInt) => a / b
+  def div = (a: BigInt) => (b: BigInt) => a / b
+
+  def myeq(a: Any, b: Any) = strict(a) == strict(b)
+  // def myeq(a: Any) = (b: Any) => strict(a) == strict(b)
+  def myeq = (a: Any) => (b: Any) => strict(a) == strict(b)
+
+  def f[X](a: => Any, b: X) = b
+  // def f(a: => Any) = i
+  def f = (a: Any) => i
+
+  // def i[X](a: => X) = a
+  def i = (a: Any) => a
+
+  def if0[B, C](a: BigInt, b: => B, c: => C) = if (a == 0) b else c
+  def if0[B, C](a: BigInt, b: => B) = (c: C) => if (a == 0) b else c
+  // def if0[B, C](a: BigInt) = (b: B) => (c: C) => if (a == 0) b else c
+  def if0 = (a: BigInt) => (b: Any) => (c: Any) => if (a == 0) b else c
+
+  // def inc(a: BigInt) = a + 1
+  def inc = (a: BigInt) => a + 1
+
+  // def isnil(a: Any) = extract[Any](a) == Nil
+  def isnil = (a: Any) => extract[Any](a) == Nil
+
+  def lt(a: BigInt, b: BigInt) = a < b
+  // def lt(a: BigInt) = (b: BigInt) => a < b
+  def lt = (a: BigInt) => (b: BigInt) => a < b
+
+  def mul(a: BigInt, b: BigInt) = a * b
+  // def mul(a: BigInt) = (b: BigInt) => a * b
+  def mul = (a: BigInt) => (b: BigInt) => a * b
+
+  // def neg(a: BigInt) = -a
+  def neg = (a: BigInt) => -a
+
+  def nil = Nil
+
+  // def pwr2(a: BigInt) = BigInt(1) << a.toInt
+  def pwr2 = (a: BigInt) => BigInt(1) << a.toInt
+
+  def s[X, Y, Z](x: (Z) => (Y) => X, y: (Z) => Y, z: Z) = x(z)(y(z))
+  def s[X, Y, Z](x: (Z) => (Y) => X, y: (Z) => Y) = (z: Z) => x(z)(y(z))
+  // def s[X, Y, Z](x: (Z) => (Y) => X) = (y: (Z) => Y) => (z: Z) => x(z)(y(z))
+  def s = (x: Fun2) => (y: Fun1) => (z: Any) => x(z)(y(z))
+
+  def t[X](a: X, b: Any) = a
+  // def t[X](a: X) = (b: Any) => a
+  def t = (a: Any) => (b: Any) => a
+}

@@ -8,10 +8,7 @@ object Modulate {
     case "11" => {
       val (a, r1) = demodulate(s drop 2)
       val (b, r2) = demodulate(r1)
-      b match {
-        case l: List[Any] => (a :: l, r2)
-        case _ => ((a, b), r2)
-      }
+      ((a, b), r2)
     }
     case "01" => {
       val n = s.indexOf('0', 2) - 2

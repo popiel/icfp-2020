@@ -1,10 +1,11 @@
 package foo
 
+import scala.annotation._
 import scala.concurrent._
 import scala.math._
 
 import javax.swing._
-import java.awt._
+import java.awt.{Frame, Canvas, Graphics, Color}
 import java.awt.event._
 
 object Drawing {
@@ -128,11 +129,15 @@ object Drawing {
     c
   }
 
-  def multidraw(pics: Seq[Seq[(BigInt, BigInt)]]) = {
-    thePics = AST.strict(pics).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]]
+  def multidraw(pics: Seq[Seq[(BigInt, BigInt)]]): String = {
+    thePics = pics
     frame.show()
     canvas.repaint()
-    pics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")
+    thePics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")
     ""
+  }
+
+  def multidraw(pics: Any): String = {
+    multidraw(AST.listify(AST.strict(pics)).asInstanceOf[Seq[Any]].map(AST.listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
   }
 }

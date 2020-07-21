@@ -88,13 +88,8 @@ case class Interact(name: String) {
   var state: Any = Nil
 
   def click(x: BigInt, y: BigInt): Any = {
+    println(s"Got click ($x, $y)")
     state = extract[List[Any]](AST.interact(protocol, state, (x, y))).head
-    /*
-    state = extract[List[Any]](interpreter.parse(Map("protocol" -> protocol, "state" -> state, "vector" -> (x, y)),
-      "ap ap ap interact protocol state vector"
-    )).head
-    */
-
     state
   }
 
@@ -102,7 +97,6 @@ case class Interact(name: String) {
     click(x, y)
     println(s"Waiting for click $n")
     val next = Await.result(Drawing.nextClick, 10.minutes)
-    println(s"Got click $next")
     IO.lastClick = next
     interact(next._1, next._2, n + 1)
   }
