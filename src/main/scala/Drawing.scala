@@ -133,11 +133,13 @@ object Drawing {
     thePics = pics
     frame.show()
     canvas.repaint()
-    thePics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")
+    // thePics.map(draw).mkString("vvvv\n", "----\n", "^^^^\n")
     ""
   }
 
   def multidraw(pics: Any): String = {
-    multidraw(AST.listify(AST.strict(pics)).asInstanceOf[Seq[Any]].map(AST.listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
+    import AST._
+    val ssb = strict(pics)
+    multidraw(listify(ssb).asInstanceOf[Seq[_]].map(listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
   }
 }

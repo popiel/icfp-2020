@@ -124,7 +124,7 @@ object AST {
   }
 
   @tailrec final def listify(a: Any, acc: (Any) => Any = (x) => x): Any = {
-    a match {
+    extract[Any](a) match {
       case (h, t) => listify(t, (o) => acc(o match {
         case l: List[_] => h :: l
         case _ => (h, o)
@@ -154,7 +154,7 @@ object AST {
       apCount = 0
       compCount = 0
       parseCount = 0
-      Drawing.multidraw(strict(data))
+      Drawing.multidraw(data)
       println(s"Drawing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
       strictNewState
     } else {
@@ -185,9 +185,9 @@ class Interpreter {
     lazy val apply = {
       condensed.getOrElseUpdate(s, symbols(s) match {
         case a: Ap => 
-          println("Condensing symbol " + s + " from " + a)
+          // println("Condensing symbol " + s + " from " + a)
           val o = flop(crunch(flip(symbols(s))))
-          println("Condensed symbol " + s + " to " + o)
+          // println("Condensed symbol " + s + " to " + o)
 	  o
 	case x => x
       })
