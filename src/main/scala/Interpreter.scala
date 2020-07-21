@@ -121,6 +121,17 @@ object AST {
     case x => x
   }
 
+  @tailrec final def listify(a: Any, acc: (Any) => Any = (x) => x): Any = {
+    a match {
+      case (h, t) => listify(t, (o) => acc(o match {
+        case l: List[_] => h :: l
+        case _ => (h, o)
+      }))
+      case _ => acc(a)
+    }
+  }
+
+
   @tailrec
   def interact(protocol: Any, state: Any, vector: Any): List[Any] = {
     apCount = 0

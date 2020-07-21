@@ -137,17 +137,7 @@ object Drawing {
     ""
   }
 
-  @tailrec final def listify(a: Any, acc: (Any) => Any = (x) => x): Any = {
-    a match {
-      case (h, t) => listify(t, (o) => acc(o match {
-        case l: List[_] => h :: l
-        case _ => (h, o)
-      }))
-      case _ => acc(a)
-    }
-  }
-
   def multidraw(pics: Any): String = {
-    multidraw(listify(AST.strict(pics)).asInstanceOf[Seq[Any]].map(listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
+    multidraw(AST.listify(AST.strict(pics)).asInstanceOf[Seq[Any]].map(AST.listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
   }
 }
