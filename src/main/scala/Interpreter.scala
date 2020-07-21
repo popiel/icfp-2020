@@ -38,6 +38,7 @@ object AST {
   def flip(a: Any, acc: List[Any] = Nil): List[Any] = {
     a match {
       case l: Lookup => flip(l(), acc)
+      case ap: Ap if ap.result.nonEmpty => flip(ap.result.get, acc)
       case ap: Ap => flip(ap.a, ap.b :: acc)
       case x => x :: acc
     }
@@ -47,14 +48,14 @@ object AST {
   def crunch(instructions: List[Any]): List[Any] = {
     // println("crunching: " + instructions)
     instructions match {
-      case (f: Func1) :: x :: r => crunch(flip(f.f(x)) ++: r)
-      case (f: Func2) :: x :: y :: r => crunch(flip(f.f(x, y)) ++: r)
-      case (f: Func3) :: x :: y :: z :: r => crunch(flip(f.f(x, y, z)) ++: r)
-      case true :: x :: y :: r => crunch(flip(x) ++: r)
-      case false :: x :: y :: r => crunch(flip(y) ++: r)
+      case (f: Func1) :: x :: r => crunch(flip(f.f(x), r))
+      case (f: Func2) :: x :: y :: r => crunch(flip(f.f(x, y), r))
+      case (f: Func3) :: x :: y :: z :: r => crunch(flip(f.f(x, y, z), r))
+      case true :: x :: y :: r => crunch(flip(x, r))
+      case false :: x :: y :: r => crunch(flip(y, r))
       case Nil :: x :: r => crunch(true :: r)
-      case (x :: y) :: b :: r => crunch(flip(b) ++: (x :: y :: r))
-      case (x, y) :: b :: r => crunch(flip(b) ++: (x :: y :: r))
+      case (x :: y) :: b :: r => crunch(flip(b, (x :: y :: r)))
+      case (x, y) :: b :: r => crunch(flip(b, (x :: y :: r)))
       case _ => instructions
     }
   }
@@ -83,16 +84,22 @@ object AST {
     case _ => throw new IllegalArgumentException(s"Cannot extract $m from $a")
   }
 
-  @tailrec def strictList(l : Any, acc: (Any) => Any): Any = {
+  @tailrec def mapList(l : Any, acc: (Any) => Any, f: (Any) => Any): Any = {
     l match {
-      case (h, t) => strictList(t, (o) => acc((strict(h), o)))
-      case _ => acc(strict(l))
+      case (h, t) => mapList(t, (o) => acc((f(h), o)), f)
+      case _ => acc(f(l))
     }
   }
 
   def strict(a: Any): Any = a match {
     case x: Complete => strict(x())
-    case (x, y) => strictList(a, (z) => z)
+    case (x, y) => mapList(a, (z) => z, strict(_))
+    case x => x
+  }
+
+  def strictNoFollow(a: Any): Any = a match {
+    case x: Ap => strictNoFollow(x())
+    case (x, y) => mapList(a, (z) => z, strictNoFollow(_))
     case x => x
   }
 
