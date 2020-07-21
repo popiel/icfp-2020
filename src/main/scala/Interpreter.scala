@@ -94,20 +94,8 @@ object AST {
       if (result.isEmpty) result = Some(compute())
       result.get
     }
-    
-    var str: Option[String] = None
-    override def toString() = result.map(_.toString).orElse(str).getOrElse {
-      str = Some(this match {
-        case Ap(Ap(Func("cons", _, 2), a), Nil) => s"List($a)"
-        case Ap(Ap(Func("cons", _, 2), a), b) if b.toString startsWith "List(" =>
-          s"List($a, ${b.toString.drop(5)}"
-        case Ap(Ap(Ap(Func(n, _, x), a), b), c) if x >= 3 => s"$n($a, $b, $c)"
-        case Ap(Ap(Func(n, _, x), a), b) if x >= 2 => s"$n($a, $b)"
-        case Ap(Func(n, _, _), a) => s"$n($a)"
-        case _ => s"Ap($a, $b)"
-      })
-      str.get
-    }
+
+    override def toString() = result.map(_.toString).getOrElse(s"ap $a $b")
   }
 
   @tailrec def extract[T](a: Any)(implicit m: Manifest[T]): T = a match {
@@ -213,8 +201,8 @@ class Interpreter {
       if (extra.nonEmpty) {
         println(s"Extra junk at end of definition of ${words(0)}: $extra")
       }
-      symbols(words(0)) = if (s contains ':') parsed else extract[Any](parsed)
-      if (words(0)(0) != ':') println(s"def ${Lookup(words(0))}: Any = $parsed")
+      symbols(words(0)) = parsed
+      if (words(0)(0) != ':') println(s"Defined ${words(0)} as $parsed")
     } else {
       println(s"Non-definition line $s")
     }
@@ -252,7 +240,7 @@ class Interpreter {
       case "cons" => Func("cons", (a: Any, b: Any) => (a, b))
       case "dec" => Func("dec", (a: Any) => extract[BigInt](a) - 1)
       case "div" => Func("div", (a: Any, b: Any) => extract[BigInt](a) / extract[BigInt](b))
-      case "eq" => Func("myeq", (a: Any, b: Any) => extract[Any](a) == extract[Any](b))
+      case "eq" => Func("eq", (a: Any, b: Any) => extract[Any](a) == extract[Any](b))
       case "f" => Func("f", (a: Any, b: Any) => b)
       case "i" => Func("i", (a: Any) => a)
       case "if0" => Func("if0", (a: Any, b: Any, c: Any) => if (extract[BigInt](a) == 0) b else c)
