@@ -100,7 +100,7 @@ case class Interact(name: String) {
 
   def click(x: BigInt, y: BigInt): Any = {
     println(s"Got click ($x, $y)")
-    state = extract[List[Any]](AST.interact(protocol, state, (x, y))).head
+    state = AST.interact(protocol, state, (x, y))
     state
   }
 

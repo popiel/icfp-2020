@@ -135,7 +135,7 @@ object AST {
 
 
   @tailrec
-  def interact(protocol: Any, state: Any, vector: Any): List[Any] = {
+  def interact(protocol: Any, state: Any, vector: Any): Any = {
     apCount = 0
     compCount = 0
     parseCount = 0
@@ -144,10 +144,19 @@ object AST {
     val (newState, x2) = extract[(Any, Any)](x1)
     val (data, _) = extract[(Any, Any)](x2)
 
-    println(s"apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    println(s"Running: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    apCount = 0
+    compCount = 0
+    parseCount = 0
     val strictNewState = IO.store(newState)
+    println(s"Storing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     if (flag == 0) {
-      List(strictNewState, Drawing.multidraw(strict(data)))
+      apCount = 0
+      compCount = 0
+      parseCount = 0
+      Drawing.multidraw(strict(data))
+      println(s"Drawing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+      strictNewState
     } else {
       interact(protocol, strictNewState, IO.send(strict(data)))
     }
