@@ -45,11 +45,22 @@ object IO {
     }
   }
 
+  def deepListify(a: Any): Any = a match {
+    case (x, y) =>
+      val (j, k) = (deepListify(x), deepListify(y))
+      k match {
+        case l: List[_] => j :: l
+	case _ => (j, k)
+      }
+    case x => x
+  }
+
   var lastModulation = "00"
   var lastHash = ""
   var lastClick = (0, 0)
   def store(state: Any) = {
     val s = AST.strict(state)
+    val l = deepListify(s)
     val m = Modulate.modulate(s)
     val d = java.security.MessageDigest.getInstance("MD5").digest(m.getBytes)
     val h = d.map(x => ("0" + ((x + 256) % 256).toHexString).takeRight(2)).mkString
@@ -61,7 +72,7 @@ object IO {
         val p = new java.io.PrintWriter(o)
 	p.println(lastModulation)
 	p.println(Modulate.modulate(lastClick))
-	p.println("State: " + s)
+	p.println("State: " + l)
 	p.println("Click: " + lastClick)
 	p.println("From: " + lastHash)
 	p.flush()
@@ -72,7 +83,7 @@ object IO {
     lastHash = h
     lastModulation = m
 
-    println("State: " + s)
+    println("State: " + l)
     println("Hash: " + h)
     s
   }
