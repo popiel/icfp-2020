@@ -35,40 +35,58 @@ object AST {
   }
 
   @tailrec
-  def flip(a: Any, acc: List[Any] = Nil): List[Any] = {
+  def flip(a: Any, acc: List[Ap] = Nil): (Any, List[Ap]) = {
     a match {
       case l: Lookup => flip(l(), acc)
       case ap: Ap if ap.result.nonEmpty => flip(ap.result.get, acc)
-      case ap: Ap => flip(ap.a, ap.b :: acc)
-      case x => x :: acc
+      case ap: Ap => flip(ap.a, ap :: acc)
+      case x => (x, acc)
     }
   }
 
+  def flop(ins: (Any, List[Ap])): Any =
+    ins._2.foldLeft(ins._1){ (acc, x) => Ap(acc, x.b) }
+
   @tailrec
-  def crunch(instructions: List[Any]): List[Any] = {
+  def crunch(instructions: (Any, List[Ap])): (Any, List[Ap]) = {
     // println("crunching: " + instructions)
     instructions match {
-      case (f: Func1) :: x :: r => crunch(flip(f.f(x), r))
-      case (f: Func2) :: x :: y :: r => crunch(flip(f.f(x, y), r))
-      case (f: Func3) :: x :: y :: z :: r => crunch(flip(f.f(x, y, z), r))
-      case true :: x :: y :: r => crunch(flip(x, r))
-      case false :: x :: y :: r => crunch(flip(y, r))
-      case Nil :: x :: r => crunch(true :: r)
-      case (x :: y) :: b :: r => crunch(flip(b, (x :: y :: r)))
-      case (x, y) :: b :: r => crunch(flip(b, (x :: y :: r)))
+      case (f: Func1, x :: r) =>
+        val o = f.f(x.b)
+	x.result = Some(o)
+        crunch(flip(o, r))
+      case (f: Func2, x :: y :: r) =>
+        val o = f.f(x.b, y.b)
+	y.result = Some(o)
+        crunch(flip(o, r))
+      case (f: Func3, x :: y :: z :: r) =>
+        val o = f.f(x.b, y.b, z.b)
+	z.result = Some(o)
+        crunch(flip(o, r))
+      case (true, x :: y :: r) =>
+        y.result = Some(x.b)
+        crunch(flip(x.b, r))
+      case (false, x :: y :: r) =>
+        y.result = Some(y.b)
+        crunch(flip(y.b, r))
+      case (Nil, x :: r) =>
+        x.result = Some(true)
+        crunch((true, r))
+      case ((x, y), b :: r) =>
+        b.result = Some(Ap(Ap(b.b, x), y))
+        crunch(flip(b.result.get, r))
       case _ => instructions
     }
   }
-
-  def flop(ins: List[Any]): Any =
-    ins.reduceLeft{ (acc, x) => Ap(acc, x) }
 
   case class Ap(a: Any, b: Any) extends Complete {
     var result: Option[Any] = None
 
     def compute(): Any = {
       compCount += 1
-      flop(crunch(flip(this)))
+      val i = flip(this)
+      val o = crunch(i)
+      if (o eq i) this else flop(o)
     }
     def apply() = {
       apCount += 1
