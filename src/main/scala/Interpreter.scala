@@ -105,7 +105,7 @@ object AST {
   }
 
   @tailrec def mapList(l : Any, acc: (Any) => Any, f: (Any) => Any): Any = {
-    l match {
+    extract[Any](l) match {
       case (h, t) => mapList(t, (o) => acc((f(h), o)), f)
       case _ => acc(f(l))
     }

@@ -98,17 +98,24 @@ case class Interact(name: String) {
 
   var state: Any = Nil
 
+  def load(hash: String) = {
+    val lines = scala.io.Source.fromFile("states/" + hash).getLines
+    state = Modulate.demodulate(lines.next())._1
+    val (x, y) = Modulate.demodulate(lines.next())._1.asInstanceOf[(BigInt, BigInt)]
+    click(x, y)
+  }
+
   def click(x: BigInt, y: BigInt): Any = {
     println(s"Got click ($x, $y)")
     state = AST.interact(protocol, state, (x, y))
     state
   }
 
-  @tailrec final def interact(x: BigInt, y: BigInt, n: Int = 0) {
-    click(x, y)
+  @tailrec final def interact(n: Int = 0) {
     println(s"Waiting for click $n")
     val next = Await.result(Drawing.nextClick, 10.minutes)
     IO.lastClick = next
-    interact(next._1, next._2, n + 1)
+    click(next._1, next._2)
+    interact(n + 1)
   }
 }
