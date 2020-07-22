@@ -11,6 +11,8 @@ import scala.util.control._
 import AST._
 
 object IO {
+  var noisy = true
+
   val uri = URI.create("https://icfpc2020-api.testkontur.ru/aliens/send?apiKey=1340d7f0d5004d40a8b3083863167298")
 
   def send(data: Any): Any = {
@@ -83,8 +85,8 @@ object IO {
     lastHash = h
     lastModulation = m
 
-    println("State: " + l)
-    println("Hash: " + h)
+    if (noisy) println("State: " + l)
+    if (noisy) println("Hash: " + h)
     s
   }
 }
@@ -106,13 +108,13 @@ case class Interact(name: String) {
   }
 
   def click(x: BigInt, y: BigInt): Any = {
-    println(s"Got click ($x, $y)")
+    if (IO.noisy) println(s"Got click ($x, $y)")
     state = AST.interact(protocol, state, (x, y))
     state
   }
 
   @tailrec final def interact(n: Int = 0) {
-    println(s"Waiting for click $n")
+    if (IO.noisy) println(s"Waiting for click $n")
     val next = Await.result(Drawing.nextClick, 10.minutes)
     IO.lastClick = next
     click(next._1, next._2)

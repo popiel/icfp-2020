@@ -9,6 +9,8 @@ import java.awt.{Frame, Canvas, Graphics, Color}
 import java.awt.event._
 
 object Drawing {
+  var showing = true
+
   def draw(points: Seq[(BigInt, BigInt)]) = {
     if (points.isEmpty) ""
     else {
@@ -139,7 +141,11 @@ object Drawing {
 
   def multidraw(pics: Any): String = {
     import AST._
-    val ssb = strict(pics)
-    multidraw(listify(ssb).asInstanceOf[Seq[_]].map(listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
+    if (showing) {
+      val ssb = strict(pics)
+      multidraw(listify(ssb).asInstanceOf[Seq[_]].map(listify(_)).asInstanceOf[Seq[Seq[(BigInt, BigInt)]]])
+    } else {
+      ""
+    }
   }
 }

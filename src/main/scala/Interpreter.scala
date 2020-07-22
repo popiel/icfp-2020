@@ -144,18 +144,18 @@ object AST {
     val (newState, x2) = extract[(Any, Any)](x1)
     val (data, _) = extract[(Any, Any)](x2)
 
-    println(s"Running: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    if (IO.noisy) println(s"Running: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     apCount = 0
     compCount = 0
     parseCount = 0
     val strictNewState = IO.store(newState)
-    println(s"Storing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+    if (IO.noisy) println(s"Storing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
     if (flag == 0) {
       apCount = 0
       compCount = 0
       parseCount = 0
       Drawing.multidraw(data)
-      println(s"Drawing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
+      if (IO.noisy) println(s"Drawing: apCount: $apCount  compCount: $compCount  parseCount: $parseCount")
       strictNewState
     } else {
       interact(protocol, strictNewState, IO.send(strict(data)))
